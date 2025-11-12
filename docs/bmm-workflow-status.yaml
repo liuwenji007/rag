@@ -1,0 +1,44 @@
+# Workflow Status Template
+# This tracks progress through BMM methodology phases
+# Phase 3/4 (Implementation) is tracked separately in sprint-status.yaml
+
+# generated: 
+# project: code-rag
+# project_type: software
+# selected_track: method
+# field_type: greenfield
+# workflow_path: .bmad/bmm/workflows/workflow-status/paths/method-greenfield.yaml
+
+generated: "2025-11-11"
+project: "code-rag"
+project_type: "software"
+selected_track: "method"
+field_type: "greenfield"
+workflow_path: ".bmad/bmm/workflows/workflow-status/paths/method-greenfield.yaml"
+
+user_description: "开发一个代码增强型知识库，用于快速检索企业私有 gitlab 的组件、UI 组件库和项目模版，并按指定技术栈筛选，为工作流与 agent 提供准确上下文。"
+
+brainstorm_requested: "true"
+research_requested: "true"
+product_brief_requested: "true"
+selected_track: "method"
+workflow_status: |-
+  # Phase 0: Discovery (Optional)
+  brainstorm-project: docs/bmm-brainstorming-session-2025-11-11.md  # agent: analyst
+  research: docs/bmm-research-technical-2025-11-11.md  # agent: analyst
+  product-brief: docs/bmm-product-brief-code-rag-2025-11-11.md  # agent: analyst
+
+  # Phase 1: Planning
+  prd: docs/PRD.md  # agent: pm
+  create-epics-and-stories: docs/epics.md  # agent: pm
+  validate-prd: optional  # agent: pm
+  create-design: conditional  # agent: ux-designer
+
+  # Phase 2: Solutioning
+  create-architecture: docs/architecture.md  # agent: architect
+  validate-architecture: optional  # agent: architect
+  solutioning-gate-check: docs/implementation-readiness-report-2025-11-11.md  # agent: architect
+
+  # Phase 3: Implementation
+  sprint-planning: .bmad-ephemeral/sprint-status.yaml  # agent: sm
+
