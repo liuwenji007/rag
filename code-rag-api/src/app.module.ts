@@ -6,9 +6,10 @@ import { HealthModule } from './health/health.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { PrismaService } from './database/prisma.service';
+import { DatasourcesModule } from './modules/datasources/datasources.module';
 
 @Module({
-  imports: [HealthModule],
+  imports: [HealthModule, DatasourcesModule],
   controllers: [AppController],
   providers: [
     AppService,

@@ -52,3 +52,69 @@ model UserRole {
   @@map("user_roles")
 }
 
+enum DataSourceType {
+  FEISHU
+  GITLAB
+  DATABASE
+}
+
+enum DataSourceStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+model DataSource {
+  id             String          @id @default(uuid())
+  name           String
+  type           DataSourceType
+  status         DataSourceStatus @default(INACTIVE)
+  config         Json            // 公开配置信息（非敏感字段）
+  encryptedConfig String?        @db.Text // 加密的敏感配置信息（App Secret、Access Token、数据库密码等）
+  enabled        Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  lastSyncAt     DateTime?       // 最后同步时间
+  description    String?         // 数据源描述
+
+  syncHistories SyncHistory[]
+  documents     Document[]
+
+  @@map("data_sources")
+}
+
+model SyncHistory {
+  id           String     @id @default(uuid())
+  datasourceId String
+  status       String     // success, failed, running
+  startTime    DateTime
+  endTime      DateTime?
+  itemsSynced  Int        @default(0) // 同步的项目数
+  itemsFailed  Int        @default(0) // 失败的项目数
+  errorMessage String?    // 错误信息
+  metadata     Json?      // 额外元信息
+
+  dataSource DataSource @relation(fields: [datasourceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("sync_histories")
+}
+
+model Document {
+  id           String    @id @default(uuid())
+  datasourceId String
+  externalId   String    // 外部系统 ID（如飞书文档 ID、GitLab 文件路径）
+  title        String
+  content      String?   @db.Text // 文档内容（可选，大文本）
+  contentType  String    // 内容类型：markdown, word, code, etc.
+  metadata     Json      // 元信息（作者、更新时间、链接等）
+  syncedAt     DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  dataSource DataSource @relation(fields: [datasourceId], references: [id], onDelete: Cascade)
+
+  @@unique([datasourceId, externalId])
+  @@map("documents")
+}
+
