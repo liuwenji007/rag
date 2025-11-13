@@ -43,12 +43,12 @@ development_status:
   # Epic 1: 项目基础架构
   epic-1: contexted
   1-1-project-initialization: review
-  1-2-tech-stack-configuration: backlog
-  1-3-docker-containerization: backlog
-  1-4-cicd-pipeline: backlog
-  1-5-api-framework: backlog
-  1-6-database-connection: backlog
-  1-7-web-console-framework: backlog
+  1-2-tech-stack-configuration: review
+  1-3-docker-containerization: review
+  1-4-cicd-pipeline: review
+  1-5-api-framework: done
+  1-6-database-connection: review
+  1-7-web-console-framework: done
   epic-1-retrospective: optional
 
   # Epic 2: 数据源集成与同步

@@ -35,6 +35,48 @@ code-rag 作为企业内网的代码增强型知识库，持续聚焦"5 秒内�
 - **向量数据库**: Milvus
 - **向量检索**: LangChain.js
 
+## 快速开始
+
+### 数据库设置
+
+1. **安装 PostgreSQL 18**
+   ```bash
+   # macOS
+   brew install postgresql@18
+   brew services start postgresql@18
+   
+   # 或使用 Docker
+   docker run --name code-rag-postgres \
+     -e POSTGRES_USER=code_rag_user \
+     -e POSTGRES_PASSWORD=code_rag_password \
+     -e POSTGRES_DB=code_rag \
+     -p 5432:5432 \
+     -d postgres:18
+   ```
+
+2. **创建数据库**
+   ```bash
+   psql -U postgres
+   CREATE DATABASE code_rag;
+   CREATE USER code_rag_user WITH PASSWORD 'code_rag_password';
+   GRANT ALL PRIVILEGES ON DATABASE code_rag TO code_rag_user;
+   ```
+
+3. **配置环境变量**
+   ```bash
+   cd code-rag-api
+   cp .env.example .env
+   # 编辑 .env 文件，设置 DATABASE_URL
+   ```
+
+4. **执行数据库迁移**
+   ```bash
+   cd code-rag-api
+   npx prisma migrate dev --name init
+   ```
+
+详细设置指南请参考：[数据库设置文档](docs/technical/database-setup.md)
+
 ## 项目结构
 
 ```
