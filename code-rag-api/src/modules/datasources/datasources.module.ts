@@ -5,11 +5,13 @@ import { EncryptionModule } from '../../services/encryption/encryption.module';
 import { FeishuModule } from '../../services/feishu/feishu.module';
 import { GitLabModule } from '../../services/gitlab/gitlab.module';
 import { DatabaseModule } from '../../services/database/database.module';
+import { SchedulerModule } from '../../services/scheduler/scheduler.module';
+import { MonitoringModule as MonitoringServiceModule } from '../../services/monitoring/monitoring.module';
 import { SyncModule } from '../sync/sync.module';
 import { PrismaService } from '../../database/prisma.service';
 
 @Module({
-  imports: [EncryptionModule, FeishuModule, GitLabModule, DatabaseModule, SyncModule],
+  imports: [EncryptionModule, FeishuModule, GitLabModule, DatabaseModule, SchedulerModule, MonitoringServiceModule, SyncModule],
   controllers: [DatasourcesController],
   providers: [DatasourcesService, PrismaService],
   exports: [DatasourcesService],

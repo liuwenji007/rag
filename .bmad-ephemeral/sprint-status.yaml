@@ -57,13 +57,13 @@ development_status:
   2-2-feishu-sync: review
   2-3-gitlab-sync: review
   2-4-database-sync: review
-  2-5-scheduled-sync: backlog
-  2-6-datasource-monitoring: backlog
+  2-5-scheduled-sync: review
+  2-6-datasource-monitoring: review
   epic-2-retrospective: optional
 
   # Epic 3: 核心检索能力
-  epic-3: backlog
-  3-1-vector-database-integration: backlog
+  epic-3: contexted
+  3-1-vector-database-integration: review
   3-2-multi-role-search: backlog
   3-3-confidence-calculation: backlog
   3-4-source-traceability: backlog

@@ -71,4 +71,8 @@ export class CreateDataSourceDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  syncSchedule?: string; // Cron 表达式，如 "0 2 * * *" 表示每天凌晨 2 点
 }

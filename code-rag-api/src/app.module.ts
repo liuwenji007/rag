@@ -8,9 +8,12 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { PrismaService } from './database/prisma.service';
 import { DatasourcesModule } from './modules/datasources/datasources.module';
 import { SyncModule } from './modules/sync/sync.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
+import { SearchModule } from './modules/search/search.module';
+import { SchedulerModule } from './services/scheduler/scheduler.module';
 
 @Module({
-  imports: [HealthModule, DatasourcesModule, SyncModule],
+  imports: [HealthModule, DatasourcesModule, SyncModule, MonitoringModule, SearchModule, SchedulerModule],
   controllers: [AppController],
   providers: [
     AppService,

@@ -2,12 +2,15 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { EncryptionService } from '../../services/encryption/encryption.service';
 import { FeishuService } from '../../services/feishu/feishu.service';
 import { GitLabService } from '../../services/gitlab/gitlab.service';
 import { DatabaseService } from '../../services/database/database.service';
+import { MilvusService, type VectorDocument } from '../../services/vector/milvus.service';
+import { EmbeddingService } from '../../services/embedding/embedding.service';
 import type {
   FeishuDataSourceConfig,
   GitLabDataSourceConfig,
@@ -17,18 +20,25 @@ import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
 @Injectable()
 export class SyncService {
+  private readonly logger = new Logger(SyncService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryption: EncryptionService,
     private readonly feishuService: FeishuService,
     private readonly gitLabService: GitLabService,
     private readonly databaseService: DatabaseService,
+    private readonly milvusService: MilvusService,
+    private readonly embeddingService: EmbeddingService,
   ) {}
 
   /**
    * 同步飞书数据源
    */
-  async syncFeishuDataSource(datasourceId: string): Promise<{
+  async syncFeishuDataSource(
+    datasourceId: string,
+    triggerType: 'manual' | 'scheduled' = 'manual',
+  ): Promise<{
     success: boolean;
     message: string;
     itemsSynced: number;
@@ -138,17 +148,14 @@ export class SyncService {
             },
           });
 
-          // TODO: 存储文档块到向量数据库（Story 3.1）
-          // 这里先记录块的数量到 metadata
-          await this.prisma.document.update({
-            where: { id: document.id },
-            data: {
-              metadata: {
-                ...(document.metadata as Record<string, unknown>),
-                chunksCount: chunks.length,
-              },
-            },
-          });
+          // 存储文档块到向量数据库
+          await this.storeChunksToVectorDB(
+            document.id,
+            dataSource.id,
+            chunks,
+            document.contentType,
+            document.metadata as Record<string, unknown>,
+          );
 
           itemsSynced++;
         } catch (error) {
@@ -259,7 +266,10 @@ export class SyncService {
   /**
    * 同步 GitLab 数据源
    */
-  async syncGitLabDataSource(datasourceId: string): Promise<{
+  async syncGitLabDataSource(
+    datasourceId: string,
+    triggerType: 'manual' | 'scheduled' = 'manual',
+  ): Promise<{
     success: boolean;
     message: string;
     itemsSynced: number;
@@ -296,6 +306,7 @@ export class SyncService {
       data: {
         datasourceId: dataSource.id,
         status: 'running',
+        triggerType,
         startTime: new Date(),
         itemsSynced: 0,
         itemsFailed: 0,
@@ -411,16 +422,14 @@ export class SyncService {
                 },
               });
 
-              // TODO: 存储代码块到向量数据库（Story 3.1）
-              await this.prisma.document.update({
-                where: { id: document.id },
-                data: {
-                  metadata: {
-                    ...(document.metadata as Record<string, unknown>),
-                    chunksCount: chunks.length,
-                  },
-                },
-              });
+              // 存储代码块到向量数据库
+              await this.storeChunksToVectorDB(
+                document.id,
+                dataSource.id,
+                chunks,
+                document.contentType,
+                document.metadata as Record<string, unknown>,
+              );
 
               itemsSynced++;
             } catch (error) {
@@ -612,7 +621,10 @@ export class SyncService {
   /**
    * 同步数据库数据源
    */
-  async syncDatabaseDataSource(datasourceId: string): Promise<{
+  async syncDatabaseDataSource(
+    datasourceId: string,
+    triggerType: 'manual' | 'scheduled' = 'manual',
+  ): Promise<{
     success: boolean;
     message: string;
     itemsSynced: number;
@@ -648,6 +660,7 @@ export class SyncService {
       data: {
         datasourceId: dataSource.id,
         status: 'running',
+        triggerType,
         startTime: new Date(),
         itemsSynced: 0,
         itemsFailed: 0,
@@ -743,16 +756,14 @@ export class SyncService {
             },
           });
 
-          // TODO: 存储表结构块到向量数据库（Story 3.1）
-          await this.prisma.document.update({
-            where: { id: structureDoc.id },
-            data: {
-              metadata: {
-                ...(structureDoc.metadata as Record<string, unknown>),
-                chunksCount: structureChunks.length,
-              },
-            },
-          });
+          // 存储表结构块到向量数据库
+          await this.storeChunksToVectorDB(
+            structureDoc.id,
+            dataSource.id,
+            structureChunks,
+            structureDoc.contentType,
+            structureDoc.metadata as Record<string, unknown>,
+          );
 
           itemsSynced++;
 
@@ -810,16 +821,14 @@ export class SyncService {
                 },
               });
 
-              // TODO: 存储样本数据块到向量数据库（Story 3.1）
-              await this.prisma.document.update({
-                where: { id: sampleDoc.id },
-                data: {
-                  metadata: {
-                    ...(sampleDoc.metadata as Record<string, unknown>),
-                    chunksCount: sampleChunks.length,
-                  },
-                },
-              });
+              // 存储样本数据块到向量数据库
+              await this.storeChunksToVectorDB(
+                sampleDoc.id,
+                dataSource.id,
+                sampleChunks,
+                sampleDoc.contentType,
+                sampleDoc.metadata as Record<string, unknown>,
+              );
 
               itemsSynced++;
             }
@@ -941,6 +950,62 @@ export class SyncService {
     }
 
     return lines.join('\n');
+  }
+
+  /**
+   * 存储文档块到向量数据库
+   */
+  private async storeChunksToVectorDB(
+    documentId: string,
+    datasourceId: string,
+    chunks: string[],
+    contentType: string,
+    metadata: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      // 批量向量化文档块
+      const embeddings = await this.embeddingService.embedDocuments(chunks);
+
+      // 构建向量文档
+      const vectorDocuments: VectorDocument[] = chunks.map((chunk, index) => ({
+        id: `${documentId}_${index}`,
+        documentId,
+        datasourceId,
+        chunkIndex: index,
+        content: chunk,
+        contentType,
+        embedding: embeddings[index],
+        metadata: {
+          ...metadata,
+          chunkIndex: index,
+          totalChunks: chunks.length,
+        },
+      }));
+
+      // 先删除旧的向量文档（如果存在）
+      await this.milvusService.deleteByDocumentId(documentId);
+
+      // 插入新的向量文档
+      if (vectorDocuments.length > 0) {
+        await this.milvusService.insertDocuments(vectorDocuments);
+      }
+
+      // 更新文档元数据，记录块数量
+      await this.prisma.document.update({
+        where: { id: documentId },
+        data: {
+          metadata: {
+            ...metadata,
+            chunksCount: chunks.length,
+          },
+        },
+      });
+    } catch (error) {
+      // 向量存储失败不影响同步流程，只记录错误
+      this.logger.error(
+        `Failed to store chunks to vector DB for document ${documentId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
   }
 
   /**

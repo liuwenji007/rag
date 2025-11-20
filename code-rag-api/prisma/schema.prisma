@@ -72,6 +72,7 @@ model DataSource {
   config         Json            // 公开配置信息（非敏感字段）
   encryptedConfig String?        @db.Text // 加密的敏感配置信息（App Secret、Access Token、数据库密码等）
   enabled        Boolean         @default(true)
+  syncSchedule   String?         // Cron 表达式，用于定时同步（如 "0 2 * * *" 表示每天凌晨 2 点）
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   lastSyncAt     DateTime?       // 最后同步时间
@@ -87,6 +88,7 @@ model SyncHistory {
   id           String     @id @default(uuid())
   datasourceId String
   status       String     // success, failed, running
+  triggerType  String?    // manual, scheduled - 触发方式
   startTime    DateTime
   endTime      DateTime?
   itemsSynced  Int        @default(0) // 同步的项目数

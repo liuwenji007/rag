@@ -8,6 +8,7 @@ import { EncryptionService } from '../../services/encryption/encryption.service'
 import { FeishuService } from '../../services/feishu/feishu.service';
 import { GitLabService } from '../../services/gitlab/gitlab.service';
 import { DatabaseService } from '../../services/database/database.service';
+import { SchedulerService } from '../../services/scheduler/scheduler.service';
 import { CreateDataSourceDto } from './dto/create-datasource.dto';
 import { UpdateDataSourceDto } from './dto/update-datasource.dto';
 import { TestConnectionDto } from './dto/test-connection.dto';
@@ -27,6 +28,7 @@ export class DatasourcesService {
     private readonly feishuService: FeishuService,
     private readonly gitLabService: GitLabService,
     private readonly databaseService: DatabaseService,
+    private readonly schedulerService: SchedulerService,
   ) {}
 
   /**
@@ -39,7 +41,7 @@ export class DatasourcesService {
       createDto.config,
     );
 
-    return this.prisma.dataSource.create({
+    const dataSource = await this.prisma.dataSource.create({
       data: {
         name: createDto.name,
         type: createDto.type,
@@ -47,8 +49,28 @@ export class DatasourcesService {
         encryptedConfig: encryptedConfig || null,
         enabled: createDto.enabled ?? true,
         status: 'INACTIVE',
+        description: createDto.description,
+        syncSchedule: createDto.syncSchedule,
       },
     });
+
+    // 如果启用了且配置了同步计划，注册定时任务
+    if (dataSource.enabled && dataSource.syncSchedule) {
+      try {
+        this.schedulerService.registerScheduledTask(
+          dataSource.id,
+          dataSource.syncSchedule,
+        );
+      } catch (error) {
+        // 定时任务注册失败不影响数据源创建
+        console.error(
+          `Failed to register scheduled task for datasource ${dataSource.id}:`,
+          error,
+        );
+      }
+    }
+
+    return dataSource;
   }
 
   /**
@@ -111,6 +133,8 @@ export class DatasourcesService {
       config?: object;
       encryptedConfig?: string | null;
       enabled?: boolean;
+      description?: string | null;
+      syncSchedule?: string | null;
     } = {};
 
     if (updateDto.name) {
@@ -135,16 +159,38 @@ export class DatasourcesService {
       updateData.enabled = updateDto.enabled;
     }
 
-    return this.prisma.dataSource.update({
+    if (updateDto.description !== undefined) {
+      updateData.description = updateDto.description;
+    }
+
+    if (updateDto.syncSchedule !== undefined) {
+      updateData.syncSchedule = updateDto.syncSchedule;
+    }
+
+    const updated = await this.prisma.dataSource.update({
       where: { id },
-      data: updateData as {
-        name?: string;
-        type?: 'FEISHU' | 'GITLAB' | 'DATABASE';
-        config?: object;
-        encryptedConfig?: string | null;
-        enabled?: boolean;
-      },
+      data: updateData,
     });
+
+    // 更新定时任务
+    if (updated.enabled && updated.syncSchedule) {
+      try {
+        this.schedulerService.updateScheduledTask(
+          updated.id,
+          updated.syncSchedule,
+        );
+      } catch (error) {
+        console.error(
+          `Failed to update scheduled task for datasource ${updated.id}:`,
+          error,
+        );
+      }
+    } else {
+      // 如果禁用或没有同步计划，停止定时任务
+      this.schedulerService.stopScheduledTask(updated.id);
+    }
+
+    return updated;
   }
 
   /**
@@ -178,10 +224,27 @@ export class DatasourcesService {
       throw new NotFoundException(`DataSource with ID ${id} not found`);
     }
 
-    return this.prisma.dataSource.update({
+    const updated = await this.prisma.dataSource.update({
       where: { id },
       data: { enabled: true, status: 'ACTIVE' },
     });
+
+    // 如果配置了同步计划，注册定时任务
+    if (updated.syncSchedule) {
+      try {
+        this.schedulerService.registerScheduledTask(
+          updated.id,
+          updated.syncSchedule,
+        );
+      } catch (error) {
+        console.error(
+          `Failed to register scheduled task for datasource ${updated.id}:`,
+          error,
+        );
+      }
+    }
+
+    return updated;
   }
 
   /**
@@ -195,6 +258,9 @@ export class DatasourcesService {
     if (!existing) {
       throw new NotFoundException(`DataSource with ID ${id} not found`);
     }
+
+    // 停止定时任务
+    this.schedulerService.stopScheduledTask(id);
 
     return this.prisma.dataSource.update({
       where: { id },

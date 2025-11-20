@@ -12,6 +12,8 @@ import {
 } from '@nestjs/common';
 import { DatasourcesService } from './datasources.service';
 import { SyncService } from '../sync/sync.service';
+import { SchedulerService } from '../../services/scheduler/scheduler.service';
+import { MonitoringService } from '../../services/monitoring/monitoring.service';
 import { CreateDataSourceDto } from './dto/create-datasource.dto';
 import { UpdateDataSourceDto } from './dto/update-datasource.dto';
 import { TestConnectionDto } from './dto/test-connection.dto';
@@ -21,6 +23,8 @@ export class DatasourcesController {
   constructor(
     private readonly datasourcesService: DatasourcesService,
     private readonly syncService: SyncService,
+    private readonly schedulerService: SchedulerService,
+    private readonly monitoringService: MonitoringService,
   ) {}
 
   @Post()
@@ -80,20 +84,12 @@ export class DatasourcesController {
   @Post(':id/sync')
   @HttpCode(HttpStatus.OK)
   async triggerSync(@Param('id') id: string) {
-    // 获取数据源类型，调用对应的同步方法
-    const dataSource = await this.datasourcesService.findOne(id);
-    
-    if (dataSource.type === 'FEISHU') {
-      return this.syncService.syncFeishuDataSource(id);
-    } else if (dataSource.type === 'GITLAB') {
-      return this.syncService.syncGitLabDataSource(id);
-    } else if (dataSource.type === 'DATABASE') {
-      return this.syncService.syncDatabaseDataSource(id);
-    } else {
-      throw new BadRequestException(
-        `Sync not supported for data source type: ${dataSource.type}`,
-      );
-    }
+    // 使用调度服务触发同步（添加到队列）
+    await this.schedulerService.triggerSync(id, 'manual');
+    return {
+      success: true,
+      message: 'Sync job added to queue',
+    };
   }
 
   /**
@@ -110,5 +106,29 @@ export class DatasourcesController {
   @Get(':id/sync-status')
   getSyncStatus(@Param('id') id: string) {
     return this.syncService.getSyncStatus(id);
+  }
+
+  /**
+   * 获取数据源状态
+   */
+  @Get(':id/status')
+  getStatus(@Param('id') id: string) {
+    return this.monitoringService.getDataSourceStatus(id);
+  }
+
+  /**
+   * 获取数据源统计信息
+   */
+  @Get(':id/stats')
+  getStats(@Param('id') id: string) {
+    return this.monitoringService.getDataSourceStats(id);
+  }
+
+  /**
+   * 获取数据源健康度
+   */
+  @Get(':id/health')
+  getHealth(@Param('id') id: string) {
+    return this.monitoringService.getDataSourceHealth(id);
   }
 }
