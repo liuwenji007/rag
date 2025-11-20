@@ -37,7 +37,7 @@ export class DatasourcesService {
       data: {
         name: createDto.name,
         type: createDto.type,
-        config: publicConfig as unknown as object,
+        config: publicConfig as object,
         encryptedConfig: encryptedConfig || null,
         enabled: createDto.enabled ?? true,
         status: 'INACTIVE',
@@ -54,19 +54,21 @@ export class DatasourcesService {
     });
 
     // 移除敏感信息（不返回给前端）
-    return dataSources.map((ds: {
-      id: string;
-      name: string;
-      type: string;
-      status: string;
-      config: unknown;
-      encryptedConfig?: string | null;
-      enabled: boolean;
-      createdAt: Date;
-      updatedAt: Date;
-      lastSyncAt: Date | null;
-      description?: string | null;
-    }) => this.removeSensitiveFields(ds));
+    return dataSources.map(
+      (ds: {
+        id: string;
+        name: string;
+        type: string;
+        status: string;
+        config: unknown;
+        encryptedConfig?: string | null;
+        enabled: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        lastSyncAt: Date | null;
+        description?: string | null;
+      }) => this.removeSensitiveFields(ds),
+    );
   }
 
   /**
@@ -99,7 +101,7 @@ export class DatasourcesService {
 
     const updateData: {
       name?: string;
-      type?: string;
+      type?: 'FEISHU' | 'GITLAB' | 'DATABASE';
       config?: object;
       encryptedConfig?: string | null;
       enabled?: boolean;
@@ -119,7 +121,7 @@ export class DatasourcesService {
         type,
         updateDto.config,
       );
-      updateData.config = publicConfig as unknown as object;
+      updateData.config = publicConfig as object;
       updateData.encryptedConfig = encryptedConfig || null;
     }
 
@@ -129,7 +131,13 @@ export class DatasourcesService {
 
     return this.prisma.dataSource.update({
       where: { id },
-      data: updateData,
+      data: updateData as {
+        name?: string;
+        type?: 'FEISHU' | 'GITLAB' | 'DATABASE';
+        config?: object;
+        encryptedConfig?: string | null;
+        enabled?: boolean;
+      },
     });
   }
 
@@ -191,7 +199,12 @@ export class DatasourcesService {
   /**
    * 测试连接（支持从数据库读取或直接传入配置）
    */
-  async testConnection(testDto: TestConnectionDto & { encryptedConfig?: string; datasourceId?: string }) {
+  async testConnection(
+    testDto: TestConnectionDto & {
+      encryptedConfig?: string;
+      datasourceId?: string;
+    },
+  ) {
     try {
       let config: unknown;
       let type: DataSourceType;
@@ -203,7 +216,9 @@ export class DatasourcesService {
         });
 
         if (!dataSource) {
-          throw new NotFoundException(`DataSource with ID ${testDto.datasourceId} not found`);
+          throw new NotFoundException(
+            `DataSource with ID ${testDto.datasourceId} not found`,
+          );
         }
 
         type = dataSource.type as DataSourceType;
@@ -246,12 +261,15 @@ export class DatasourcesService {
             config as DatabaseDataSourceConfig,
           );
         default:
-          throw new BadRequestException(`Unsupported data source type: ${type}`);
+          throw new BadRequestException(
+            `Unsupported data source type: ${type}`,
+          );
       }
     } catch (error) {
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Connection test failed',
+        message:
+          error instanceof Error ? error.message : 'Connection test failed',
       };
     }
   }
@@ -424,10 +442,16 @@ export class DatasourcesService {
     const sanitizedConfig = { ...config };
 
     // 移除敏感字段占位符
-    if (dataSource.type === 'FEISHU' && sanitizedConfig.appSecret === '[ENCRYPTED]') {
+    if (
+      dataSource.type === 'FEISHU' &&
+      sanitizedConfig.appSecret === '[ENCRYPTED]'
+    ) {
       delete sanitizedConfig.appSecret;
     }
-    if (dataSource.type === 'GITLAB' && sanitizedConfig.accessToken === '[ENCRYPTED]') {
+    if (
+      dataSource.type === 'GITLAB' &&
+      sanitizedConfig.accessToken === '[ENCRYPTED]'
+    ) {
       delete sanitizedConfig.accessToken;
     }
     if (
@@ -448,4 +472,3 @@ export class DatasourcesService {
     return result;
   }
 }
-

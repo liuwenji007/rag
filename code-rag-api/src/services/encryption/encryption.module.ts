@@ -6,4 +6,3 @@ import { EncryptionService } from './encryption.service';
   exports: [EncryptionService],
 })
 export class EncryptionModule {}
-

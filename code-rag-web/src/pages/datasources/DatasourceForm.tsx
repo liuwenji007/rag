@@ -86,9 +86,9 @@ function DatasourceForm() {
     setFormData({
       ...formData,
       config: {
-        ...(formData.config as Record<string, unknown>),
+        ...(formData.config as unknown as Record<string, unknown>),
         [field]: value,
-      } as FeishuDataSourceConfig | GitLabDataSourceConfig | DatabaseDataSourceConfig,
+      } as unknown as FeishuDataSourceConfig | GitLabDataSourceConfig | DatabaseDataSourceConfig,
     });
   };
 

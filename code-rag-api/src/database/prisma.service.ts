@@ -12,7 +12,10 @@ export class PrismaService
       // Prisma uses connection pooling by default
       // For PostgreSQL, connection_limit can be set in DATABASE_URL
       // Example: postgresql://user:password@localhost:5432/db?connection_limit=20
-      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+      log:
+        process.env.NODE_ENV === 'development'
+          ? ['query', 'error', 'warn']
+          : ['error'],
     });
   }
 

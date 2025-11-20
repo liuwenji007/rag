@@ -8,7 +8,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { DataSourceType } from '../interfaces/datasource-config.interface';
+import type { DataSourceType } from '../interfaces/datasource-config.interface';
 
 export class FeishuConfigDto {
   @IsString()
@@ -72,4 +72,3 @@ export class CreateDataSourceDto {
   @IsString()
   description?: string;
 }
-

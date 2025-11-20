@@ -1,11 +1,6 @@
-import {
-  IsString,
-  IsEnum,
-  IsObject,
-  ValidateNested,
-} from 'class-validator';
+import { IsString, IsEnum, IsObject, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { DataSourceType } from '../interfaces/datasource-config.interface';
+import type { DataSourceType } from '../interfaces/datasource-config.interface';
 
 class FeishuConfigDto {
   @IsString()
@@ -49,4 +44,3 @@ export class TestConnectionDto {
   })
   config!: FeishuConfigDto | GitLabConfigDto | DatabaseConfigDto;
 }
-

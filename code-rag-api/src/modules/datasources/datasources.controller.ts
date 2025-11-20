@@ -69,4 +69,3 @@ export class DatasourcesController {
     return this.datasourcesService.disable(id);
   }
 }
-

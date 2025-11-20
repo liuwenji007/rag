@@ -30,4 +30,3 @@ export type DataSourceConfig =
   | FeishuDataSourceConfig
   | GitLabDataSourceConfig
   | DatabaseDataSourceConfig;
-
