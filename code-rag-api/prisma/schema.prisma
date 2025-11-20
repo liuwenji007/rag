@@ -120,3 +120,17 @@ model Document {
   @@map("documents")
 }
 
+model SearchHistory {
+  id             String    @id @default(uuid())
+  userId         String    // 用户 ID（从请求头或 JWT token 获取）
+  query          String    // 检索查询内容
+  role           String?   // 用户角色（UserRole: developer, product, ui）
+  resultsCount   Int       // 返回结果数量
+  adoptionStatus String?   // 采纳状态：'adopted' | 'rejected' | null
+  createdAt      DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, role])
+  @@map("search_histories")
+}
+
