@@ -7,9 +7,10 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { PrismaService } from './database/prisma.service';
 import { DatasourcesModule } from './modules/datasources/datasources.module';
+import { SyncModule } from './modules/sync/sync.module';
 
 @Module({
-  imports: [HealthModule, DatasourcesModule],
+  imports: [HealthModule, DatasourcesModule, SyncModule],
   controllers: [AppController],
   providers: [
     AppService,

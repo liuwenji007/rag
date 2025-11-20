@@ -54,9 +54,9 @@ development_status:
   # Epic 2: 数据源集成与同步
          epic-2: contexted
          2-1-datasource-configuration: review
-  2-2-feishu-sync: backlog
-  2-3-gitlab-sync: backlog
-  2-4-database-sync: backlog
+  2-2-feishu-sync: review
+  2-3-gitlab-sync: review
+  2-4-database-sync: review
   2-5-scheduled-sync: backlog
   2-6-datasource-monitoring: backlog
   epic-2-retrospective: optional

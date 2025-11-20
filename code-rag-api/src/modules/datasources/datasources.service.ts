@@ -5,6 +5,9 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { EncryptionService } from '../../services/encryption/encryption.service';
+import { FeishuService } from '../../services/feishu/feishu.service';
+import { GitLabService } from '../../services/gitlab/gitlab.service';
+import { DatabaseService } from '../../services/database/database.service';
 import { CreateDataSourceDto } from './dto/create-datasource.dto';
 import { UpdateDataSourceDto } from './dto/update-datasource.dto';
 import { TestConnectionDto } from './dto/test-connection.dto';
@@ -21,6 +24,9 @@ export class DatasourcesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryption: EncryptionService,
+    private readonly feishuService: FeishuService,
+    private readonly gitLabService: GitLabService,
+    private readonly databaseService: DatabaseService,
   ) {}
 
   /**
@@ -257,7 +263,7 @@ export class DatasourcesService {
             config as GitLabDataSourceConfig,
           );
         case 'DATABASE':
-          return await this.testDatabaseConnection(
+          return await this.databaseService.testConnection(
             config as DatabaseDataSourceConfig,
           );
         default:
@@ -278,63 +284,14 @@ export class DatasourcesService {
    * 测试飞书连接
    */
   private async testFeishuConnection(config: FeishuDataSourceConfig) {
-    // TODO: 实现飞书 API 连接测试
-    // 这里先返回成功，后续在 Story 2.2 中实现具体的飞书 API 调用
-    return {
-      success: true,
-      message: 'Feishu connection test passed (mock)',
-    };
+    return await this.feishuService.testConnection(config);
   }
 
   /**
    * 测试 GitLab 连接
    */
   private async testGitLabConnection(config: GitLabDataSourceConfig) {
-    try {
-      const url = config.url.replace(/\/$/, ''); // 移除末尾斜杠
-      const response = await axios.get(`${url}/api/v4/user`, {
-        headers: {
-          'PRIVATE-TOKEN': config.accessToken,
-        },
-        timeout: 10000,
-      });
-
-      if (response.status === 200) {
-        return {
-          success: true,
-          message: 'GitLab connection test passed',
-          data: {
-            username: response.data.username,
-            email: response.data.email,
-          },
-        };
-      }
-
-      throw new Error('GitLab connection test failed');
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        if (error.response?.status === 401) {
-          throw new Error('Invalid access token');
-        }
-        if (error.response?.status === 404) {
-          throw new Error('GitLab URL not found');
-        }
-        throw new Error(`GitLab connection failed: ${error.message}`);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * 测试数据库连接
-   */
-  private async testDatabaseConnection(config: DatabaseDataSourceConfig) {
-    // TODO: 实现数据库连接测试
-    // 这里先返回成功，后续在 Story 2.4 中实现具体的数据库连接测试
-    return {
-      success: true,
-      message: 'Database connection test passed (mock)',
-    };
+    return await this.gitLabService.testConnection(config);
   }
 
   /**
