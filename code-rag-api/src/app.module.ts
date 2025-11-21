@@ -11,6 +11,7 @@ import { DatasourcesModule } from './modules/datasources/datasources.module';
 import { SyncModule } from './modules/sync/sync.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { SearchModule } from './modules/search/search.module';
+import { DiffModule } from './modules/diff/diff.module';
 import { SchedulerModule } from './services/scheduler/scheduler.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { SchedulerModule } from './services/scheduler/scheduler.module';
     SyncModule,
     MonitoringModule,
     SearchModule,
+    DiffModule,
     SchedulerModule,
   ],
   controllers: [AppController],

@@ -72,8 +72,8 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: 差异分析与代码建议
-  epic-4: backlog
-  4-1-requirement-parsing: backlog
+  epic-4: contexted
+  4-1-requirement-parsing: review
   4-2-code-matching: backlog
   4-3-diff-summary: backlog
   4-4-todo-generation: backlog

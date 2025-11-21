@@ -27,6 +27,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@langchain/anthropic": "^1.1.1",
     "@langchain/openai": "^1.1.2",
     "@langchain/textsplitters": "^1.0.0",
     "@larksuiteoapi/node-sdk": "^1.55.0",
