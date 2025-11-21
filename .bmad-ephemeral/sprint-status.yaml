@@ -74,8 +74,8 @@ development_status:
   # Epic 4: 差异分析与代码建议
   epic-4: contexted
   4-1-requirement-parsing: review
-  4-2-code-matching: backlog
-  4-3-diff-summary: backlog
+  4-2-code-matching: review
+  4-3-diff-summary: review
   4-4-todo-generation: backlog
   4-5-diff-analysis-api: backlog
   4-6-diff-analysis-ui: backlog

@@ -11,6 +11,8 @@ import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { DiffService } from './diff.service';
 import { AnalyzeRequirementDto } from './dto/analyze-requirement.dto';
+import { MatchCodeDto, MatchCodeBatchDto } from './dto/match-code.dto';
+import { GenerateSummaryDto } from './dto/generate-summary.dto';
 
 @ApiTags('diff')
 @Controller('diff')
@@ -134,6 +136,171 @@ export class DiffController {
       );
       res.end();
     }
+  }
+
+  /**
+   * 匹配历史代码（单个变更点）
+   */
+  @Post('match-code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '匹配历史代码',
+    description: '为单个变更点匹配相似的历史代码，返回代码片段、上下文、匹配度和来源链接。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '匹配成功',
+    schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'number', example: 200 },
+        message: { type: 'string', example: 'success' },
+        data: {
+          type: 'object',
+          properties: {
+            changePoint: { type: 'string' },
+            matches: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  code: { type: 'string' },
+                  context: {
+                    type: 'object',
+                    properties: {
+                      filePath: { type: 'string' },
+                      functionName: { type: 'string', nullable: true },
+                      className: { type: 'string', nullable: true },
+                      moduleName: { type: 'string', nullable: true },
+                    },
+                  },
+                  similarity: { type: 'number' },
+                  sourceLink: {
+                    type: 'object',
+                    nullable: true,
+                    properties: {
+                      url: { type: 'string' },
+                      type: { type: 'string' },
+                      displayText: { type: 'string' },
+                    },
+                  },
+                  metadata: {
+                    type: 'object',
+                    properties: {
+                      language: { type: 'string' },
+                      datasourceId: { type: 'string' },
+                      documentId: { type: 'string' },
+                      chunkIndex: { type: 'number' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: '请求参数错误' })
+  async matchCode(@Body() dto: MatchCodeDto) {
+    const result = await this.diffService.matchCodeForChangePoint(
+      dto.changePoint,
+      {
+        topK: dto.topK,
+        minScore: dto.minScore,
+        datasourceIds: dto.datasourceIds,
+      },
+    );
+    return result;
+  }
+
+  /**
+   * 批量匹配历史代码（多个变更点）
+   */
+  @Post('match-code/batch')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '批量匹配历史代码',
+    description: '为多个变更点匹配相似的历史代码，返回每个变更点的匹配结果。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '批量匹配成功',
+    schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'number', example: 200 },
+        message: { type: 'string', example: 'success' },
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              changePoint: { type: 'string' },
+              matches: { type: 'array' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: '请求参数错误' })
+  async matchCodeBatch(@Body() dto: MatchCodeBatchDto) {
+    const results = await this.diffService.matchCodeForChangePoints(
+      dto.changePoints,
+      {
+        topK: dto.topK,
+        minScore: dto.minScore,
+        datasourceIds: dto.datasourceIds,
+      },
+    );
+    return results;
+  }
+
+  /**
+   * 生成差异总结
+   */
+  @Post('generate-summary')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '生成差异总结',
+    description:
+      '基于需求描述自动生成差异分析总结，包含新增功能点、修改功能点、影响范围、PRD 片段和参考代码。返回 Markdown 格式的总结。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '总结生成成功',
+    schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'number', example: 200 },
+        message: { type: 'string', example: 'success' },
+        data: {
+          type: 'object',
+          properties: {
+            summary: {
+              type: 'string',
+              description: 'Markdown 格式的差异分析总结',
+              example: '# 需求差异分析总结\n\n## 一、新增功能点\n...',
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: '请求参数错误' })
+  async generateSummary(@Body() dto: GenerateSummaryDto) {
+    const summary = await this.diffService.generateDiffSummary(
+      dto.requirement,
+      {
+        includeCodeMatches: dto.includeCodeMatches,
+        includePRDFragments: dto.includePRDFragments,
+        codeMatchTopK: dto.codeMatchTopK,
+        prdTopK: dto.prdTopK,
+      },
+    );
+    return { summary };
   }
 }
 
