@@ -15,6 +15,7 @@ import type {
   CodeMatch,
   CodeContext,
 } from './interfaces/code-matching.interface';
+import type { TodoList, TodoItem } from './interfaces/todo.interface';
 
 @Injectable()
 export class DiffService {
@@ -634,6 +635,189 @@ ${requirementParsing.modifiedFeatures
     prompt += `\n请根据以上信息生成一份完整的 Markdown 格式差异分析总结，确保包含所有必需的部分和来源链接。`;
 
     return prompt;
+  }
+
+  /**
+   * 生成待办列表
+   */
+  async generateTodos(
+    requirement: string,
+    options?: {
+      includeCodeMatches?: boolean;
+      codeMatchTopK?: number;
+    },
+  ): Promise<TodoList> {
+    try {
+      // 1. 解析需求
+      const requirementParsing = await this.parseRequirement(requirement);
+
+      // 2. 匹配历史代码（如果需要）
+      let codeMatches: CodeMatchResult[] = [];
+      if (options?.includeCodeMatches !== false) {
+        const allChangePoints = [
+          ...requirementParsing.newFeatures.map((f) => f.description),
+          ...requirementParsing.modifiedFeatures.map((f) => f.description),
+        ];
+        if (allChangePoints.length > 0) {
+          codeMatches = await this.matchCodeForChangePoints(
+            allChangePoints,
+            {
+              topK: options?.codeMatchTopK ?? 5,
+              minScore: 0.6,
+            },
+          );
+        }
+      }
+
+      // 3. 生成待办项
+      const todos: TodoItem[] = [];
+
+      // 为新增功能点创建待办项
+      requirementParsing.newFeatures.forEach((feature, idx) => {
+        const codeMatch = codeMatches.find((match) =>
+          match.changePoint.includes(feature.description) ||
+          feature.description.includes(match.changePoint),
+        );
+
+        todos.push({
+          id: `new-${idx + 1}`,
+          title: `新增功能: ${feature.name}`,
+          description: feature.description,
+          priority: feature.priority,
+          type: 'new_feature',
+          relatedDocs: [], // 可以从 PRD 检索结果中获取
+          codeRefs: codeMatch
+            ? codeMatch.matches.slice(0, 3).map((match) => ({
+                filePath: match.context.filePath,
+                url: match.sourceLink?.url || '',
+                description: `匹配度: ${(match.similarity * 100).toFixed(1)}%`,
+              }))
+            : [],
+          status: 'pending',
+          createdAt: new Date(),
+        });
+      });
+
+      // 为修改功能点创建待办项
+      requirementParsing.modifiedFeatures.forEach((feature, idx) => {
+        const codeMatch = codeMatches.find((match) =>
+          match.changePoint.includes(feature.description) ||
+          feature.description.includes(match.changePoint),
+        );
+
+        todos.push({
+          id: `modified-${idx + 1}`,
+          title: `修改功能: ${feature.name}`,
+          description: `${feature.description}\n影响模块: ${feature.affectedModules.join(', ')}`,
+          priority: feature.priority,
+          type: 'modified_feature',
+          relatedDocs: [],
+          codeRefs: codeMatch
+            ? codeMatch.matches.slice(0, 3).map((match) => ({
+                filePath: match.context.filePath,
+                url: match.sourceLink?.url || '',
+                description: `匹配度: ${(match.similarity * 100).toFixed(1)}%`,
+              }))
+            : [],
+          status: 'pending',
+          createdAt: new Date(),
+        });
+      });
+
+      return {
+        requirement,
+        todos,
+        generatedAt: new Date(),
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate todos: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * 导出待办列表为 JSON 格式
+   */
+  exportTodosAsJSON(todoList: TodoList): string {
+    return JSON.stringify(todoList, null, 2);
+  }
+
+  /**
+   * 导出待办列表为 Markdown 格式
+   */
+  exportTodosAsMarkdown(todoList: TodoList): string {
+    let markdown = `# 待办事项列表\n\n`;
+    markdown += `**需求**: ${todoList.requirement}\n\n`;
+    markdown += `**生成时间**: ${todoList.generatedAt.toISOString()}\n\n`;
+    markdown += `---\n\n`;
+
+    // 按优先级分组
+    const highPriority = todoList.todos.filter((t) => t.priority === 'high');
+    const mediumPriority = todoList.todos.filter(
+      (t) => t.priority === 'medium',
+    );
+    const lowPriority = todoList.todos.filter((t) => t.priority === 'low');
+
+    if (highPriority.length > 0) {
+      markdown += `## 🔴 高优先级\n\n`;
+      highPriority.forEach((todo, idx) => {
+        markdown += this.formatTodoAsMarkdown(todo, idx + 1);
+      });
+    }
+
+    if (mediumPriority.length > 0) {
+      markdown += `## 🟡 中优先级\n\n`;
+      mediumPriority.forEach((todo, idx) => {
+        markdown += this.formatTodoAsMarkdown(
+          todo,
+          highPriority.length + idx + 1,
+        );
+      });
+    }
+
+    if (lowPriority.length > 0) {
+      markdown += `## 🟢 低优先级\n\n`;
+      lowPriority.forEach((todo, idx) => {
+        markdown += this.formatTodoAsMarkdown(
+          todo,
+          highPriority.length + mediumPriority.length + idx + 1,
+        );
+      });
+    }
+
+    return markdown;
+  }
+
+  /**
+   * 格式化单个待办项为 Markdown
+   */
+  private formatTodoAsMarkdown(todo: TodoItem, index: number): string {
+    let markdown = `### ${index}. ${todo.title}\n\n`;
+    markdown += `- **类型**: ${todo.type === 'new_feature' ? '新增功能' : '修改功能'}\n`;
+    markdown += `- **优先级**: ${todo.priority}\n`;
+    markdown += `- **状态**: ${todo.status}\n`;
+    markdown += `- **描述**: ${todo.description}\n\n`;
+
+    if (todo.codeRefs.length > 0) {
+      markdown += `**参考代码**:\n`;
+      todo.codeRefs.forEach((ref) => {
+        markdown += `- [${ref.filePath}](${ref.url}) - ${ref.description}\n`;
+      });
+      markdown += `\n`;
+    }
+
+    if (todo.relatedDocs.length > 0) {
+      markdown += `**相关文档**:\n`;
+      todo.relatedDocs.forEach((doc) => {
+        markdown += `- [${doc.title}](${doc.url})\n`;
+      });
+      markdown += `\n`;
+    }
+
+    markdown += `---\n\n`;
+    return markdown;
   }
 }
 

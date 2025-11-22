@@ -13,6 +13,7 @@ import { DiffService } from './diff.service';
 import { AnalyzeRequirementDto } from './dto/analyze-requirement.dto';
 import { MatchCodeDto, MatchCodeBatchDto } from './dto/match-code.dto';
 import { GenerateSummaryDto } from './dto/generate-summary.dto';
+import { GenerateTodosDto, ExportFormat } from './dto/generate-todos.dto';
 
 @ApiTags('diff')
 @Controller('diff')
@@ -301,6 +302,81 @@ export class DiffController {
       },
     );
     return { summary };
+  }
+
+  /**
+   * 生成待办列表
+   */
+  @Post('generate-todos')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '生成待办列表',
+    description:
+      '基于需求描述自动生成待办事项列表，包含新增功能点和修改功能点的待办项。支持导出为 JSON 或 Markdown 格式。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '待办列表生成成功',
+    schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'number', example: 200 },
+        message: { type: 'string', example: 'success' },
+        data: {
+          type: 'object',
+          properties: {
+            todos: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  title: { type: 'string' },
+                  description: { type: 'string' },
+                  priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+                  type: { type: 'string', enum: ['new_feature', 'modified_feature'] },
+                  relatedDocs: { type: 'array' },
+                  codeRefs: { type: 'array' },
+                  status: { type: 'string', enum: ['pending', 'in_progress', 'completed'] },
+                  createdAt: { type: 'string', format: 'date-time' },
+                },
+              },
+            },
+            exported: {
+              type: 'object',
+              properties: {
+                format: { type: 'string' },
+                content: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: '请求参数错误' })
+  async generateTodos(@Body() dto: GenerateTodosDto) {
+    const todoList = await this.diffService.generateTodos(dto.requirement, {
+      includeCodeMatches: dto.includeCodeMatches,
+      codeMatchTopK: dto.codeMatchTopK,
+    });
+
+    // 根据导出格式导出
+    const format = dto.exportFormat || ExportFormat.JSON;
+    let exportedContent: string;
+    if (format === ExportFormat.MARKDOWN) {
+      exportedContent = this.diffService.exportTodosAsMarkdown(todoList);
+    } else {
+      exportedContent = this.diffService.exportTodosAsJSON(todoList);
+    }
+
+    return {
+      todos: todoList.todos,
+      exported: {
+        format,
+        content: exportedContent,
+      },
+    };
   }
 }
 

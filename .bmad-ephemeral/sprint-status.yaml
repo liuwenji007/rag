@@ -76,7 +76,7 @@ development_status:
   4-1-requirement-parsing: review
   4-2-code-matching: review
   4-3-diff-summary: review
-  4-4-todo-generation: backlog
+  4-4-todo-generation: review
   4-5-diff-analysis-api: backlog
   4-6-diff-analysis-ui: backlog
   epic-4-retrospective: optional
