@@ -1,33 +1,34 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import type { Components } from 'react-markdown';
 import {
   getDocumentById,
   deleteDocument,
   getAllTags,
   addTagToDocument,
   removeTagFromDocument,
+  linkPRDToDesign,
+  unlinkPRDFromDesign,
+  getDocuments,
   type DocumentDetail,
   type Tag,
+  type DocumentListItem,
 } from '../../../services/documents';
-import UIRequirementsTab from './components/UIRequirementsTab';
 
-export default function PRDDetailPage() {
+export default function DesignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [document, setDocument] = useState<DocumentDetail | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [prdDocuments, setPrdDocuments] = useState<DocumentListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'content' | 'versions' | 'tags' | 'ui-requirements'>('content');
+  const [activeTab, setActiveTab] = useState<'preview' | 'info' | 'tags'>('preview');
 
   useEffect(() => {
     if (id) {
       loadDocument();
       loadTags();
+      loadPRDDocuments();
     }
   }, [id]);
 
@@ -40,7 +41,7 @@ export default function PRDDetailPage() {
       setDocument(doc);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : '加载文档失败',
+        err instanceof Error ? err.message : '加载设计稿失败',
       );
     } finally {
       setLoading(false);
@@ -56,18 +57,27 @@ export default function PRDDetailPage() {
     }
   };
 
+  const loadPRDDocuments = async () => {
+    try {
+      const response = await getDocuments({ type: 'prd', limit: 100 });
+      setPrdDocuments(response.documents);
+    } catch (err) {
+      console.error('Failed to load PRD documents:', err);
+    }
+  };
+
   const handleDelete = async () => {
     if (!id) return;
-    if (!confirm('确定要删除这个文档吗？删除后可以在历史记录中查看。')) {
+    if (!confirm('确定要删除这个设计稿吗？删除后可以在历史记录中查看。')) {
       return;
     }
 
     try {
       await deleteDocument(id);
-      navigate('/documents/prd');
+      navigate('/documents/designs');
     } catch (err) {
       alert(
-        err instanceof Error ? err.message : '删除文档失败',
+        err instanceof Error ? err.message : '删除设计稿失败',
       );
     }
   };
@@ -96,44 +106,41 @@ export default function PRDDetailPage() {
     }
   };
 
+  const handleLinkPRD = async (prdId: string) => {
+    if (!id) return;
+    try {
+      await linkPRDToDesign(id, prdId);
+      await loadDocument();
+    } catch (err) {
+      alert(
+        err instanceof Error ? err.message : '关联 PRD 失败',
+      );
+    }
+  };
+
+  const handleUnlinkPRD = async () => {
+    if (!id) return;
+    try {
+      await unlinkPRDFromDesign(id);
+      await loadDocument();
+    } catch (err) {
+      alert(
+        err instanceof Error ? err.message : '取消关联失败',
+      );
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('zh-CN');
   };
 
-  const markdownComponents: Components = {
-    code({ className, children, ...props }) {
-      const match = /language-(\w+)/.exec(className || '');
-      const language = match ? match[1] : '';
-      const codeString = String(children).replace(/\n$/, '');
-
-      return language ? (
-        <SyntaxHighlighter
-          style={vscDarkPlus}
-          language={language}
-          PreTag="div"
-          {...(props as Record<string, unknown>)}
-        >
-          {codeString}
-        </SyntaxHighlighter>
-      ) : (
-        <code className={className} {...props}>
-          {children}
-        </code>
-      );
-    },
-    a({ href, children, ...props }) {
-      return (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: '#007bff', textDecoration: 'none' }}
-          {...props}
-        >
-          {children}
-        </a>
-      );
-    },
+  const getImageUrl = (imageUrl: string | null | undefined) => {
+    if (!imageUrl) return null;
+    if (imageUrl.startsWith('/')) {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+      return `${apiBaseUrl}${imageUrl}`;
+    }
+    return imageUrl;
   };
 
   if (loading) {
@@ -149,7 +156,7 @@ export default function PRDDetailPage() {
           {error}
         </div>
         <button
-          onClick={() => navigate('/documents/prd')}
+          onClick={() => navigate('/documents/designs')}
           style={{
             marginTop: '16px',
             padding: '8px 16px',
@@ -168,22 +175,23 @@ export default function PRDDetailPage() {
 
   if (!document) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>文档不存在</div>
+      <div style={{ padding: '24px', textAlign: 'center' }}>设计稿不存在</div>
     );
   }
 
   const documentTags = document.tags.map((t) => t.id);
   const availableTags = tags.filter((t) => !documentTags.includes(t.id));
+  const imageUrl = getImageUrl(document.imageUrl);
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* 头部 */}
       <div style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h1 style={{ margin: 0 }}>{document.title}</h1>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
-              onClick={() => navigate(`/documents/prd/${id}/edit`)}
+              onClick={() => navigate(`/documents/designs/${id}/edit`)}
               style={{
                 padding: '8px 16px',
                 backgroundColor: '#28a745',
@@ -211,7 +219,7 @@ export default function PRDDetailPage() {
               删除
             </button>
             <button
-              onClick={() => navigate('/documents/prd')}
+              onClick={() => navigate('/documents/designs')}
               style={{
                 padding: '8px 16px',
                 backgroundColor: '#6c757d',
@@ -232,7 +240,45 @@ export default function PRDDetailPage() {
           <span>上传时间: {formatDate(document.syncedAt)}</span>
           <span>更新时间: {formatDate(document.updatedAt)}</span>
           {document.uploadedBy && <span>上传者: {document.uploadedBy}</span>}
+          {document.imageWidth && document.imageHeight && (
+            <span>尺寸: {document.imageWidth} × {document.imageHeight}px</span>
+          )}
         </div>
+
+        {/* 关联 PRD */}
+        {document.prdId && document.prdTitle && (
+          <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#e3f2fd', borderRadius: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <strong>关联 PRD:</strong>{' '}
+                <a
+                  href={`/documents/prd/${document.prdId}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(`/documents/prd/${document.prdId}`);
+                  }}
+                  style={{ color: '#007bff', textDecoration: 'none' }}
+                >
+                  {document.prdTitle}
+                </a>
+              </div>
+              <button
+                onClick={handleUnlinkPRD}
+                style={{
+                  padding: '4px 12px',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                }}
+              >
+                取消关联
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 标签 */}
         {document.tags.length > 0 && (
@@ -303,34 +349,34 @@ export default function PRDDetailPage() {
       <div style={{ borderBottom: '1px solid #ddd', marginBottom: '24px' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
-            onClick={() => setActiveTab('content')}
+            onClick={() => setActiveTab('preview')}
             style={{
               padding: '12px 24px',
               border: 'none',
-              borderBottom: activeTab === 'content' ? '2px solid #007bff' : '2px solid transparent',
+              borderBottom: activeTab === 'preview' ? '2px solid #007bff' : '2px solid transparent',
               backgroundColor: 'transparent',
               cursor: 'pointer',
               fontSize: '14px',
-              fontWeight: activeTab === 'content' ? 'bold' : 'normal',
-              color: activeTab === 'content' ? '#007bff' : '#666',
+              fontWeight: activeTab === 'preview' ? 'bold' : 'normal',
+              color: activeTab === 'preview' ? '#007bff' : '#666',
             }}
           >
-            内容
+            图片预览
           </button>
           <button
-            onClick={() => setActiveTab('versions')}
+            onClick={() => setActiveTab('info')}
             style={{
               padding: '12px 24px',
               border: 'none',
-              borderBottom: activeTab === 'versions' ? '2px solid #007bff' : '2px solid transparent',
+              borderBottom: activeTab === 'info' ? '2px solid #007bff' : '2px solid transparent',
               backgroundColor: 'transparent',
               cursor: 'pointer',
               fontSize: '14px',
-              fontWeight: activeTab === 'versions' ? 'bold' : 'normal',
-              color: activeTab === 'versions' ? '#007bff' : '#666',
+              fontWeight: activeTab === 'info' ? 'bold' : 'normal',
+              color: activeTab === 'info' ? '#007bff' : '#666',
             }}
           >
-            版本历史 ({document.versions.length})
+            详细信息
           </button>
           <button
             onClick={() => setActiveTab('tags')}
@@ -347,120 +393,135 @@ export default function PRDDetailPage() {
           >
             标签管理
           </button>
-          <button
-            onClick={() => setActiveTab('ui-requirements')}
-            style={{
-              padding: '12px 24px',
-              border: 'none',
-              borderBottom: activeTab === 'ui-requirements' ? '2px solid #007bff' : '2px solid transparent',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: activeTab === 'ui-requirements' ? 'bold' : 'normal',
-              color: activeTab === 'ui-requirements' ? '#007bff' : '#666',
-            }}
-          >
-            UI 需求
-          </button>
         </div>
       </div>
 
-      {/* 内容标签页 */}
-      {activeTab === 'content' && (
+      {/* 图片预览标签页 */}
+      {activeTab === 'preview' && (
         <div>
-          {document.content ? (
-            document.contentType === 'markdown' ? (
-              <div
+          {imageUrl ? (
+            <div style={{ textAlign: 'center' }}>
+              <img
+                src={imageUrl}
+                alt={document.title}
                 style={{
-                  padding: '24px',
-                  backgroundColor: '#fff',
+                  maxWidth: '100%',
+                  maxHeight: '600px',
                   borderRadius: '8px',
-                  border: '1px solid #e0e0e0',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                 }}
-              >
-                <ReactMarkdown components={markdownComponents}>
-                  {document.content}
-                </ReactMarkdown>
-              </div>
-            ) : (
-              <pre
-                style={{
-                  padding: '24px',
-                  backgroundColor: '#f5f5f5',
-                  borderRadius: '8px',
-                  border: '1px solid #e0e0e0',
-                  overflow: 'auto',
-                  whiteSpace: 'pre-wrap',
-                  fontSize: '14px',
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  img.style.display = 'none';
+                  const parent = img.parentElement;
+                  if (parent && !parent.querySelector('.error-message')) {
+                    const errorDiv = window.document.createElement('div');
+                    errorDiv.className = 'error-message';
+                    errorDiv.textContent = '图片加载失败';
+                    errorDiv.style.padding = '24px';
+                    errorDiv.style.color = '#999';
+                    parent.appendChild(errorDiv);
+                  }
                 }}
-              >
-                {document.content}
-              </pre>
-            )
+              />
+            </div>
           ) : (
             <div style={{ padding: '24px', textAlign: 'center', color: '#999' }}>
-              文档内容为空
+              图片不可用
             </div>
           )}
         </div>
       )}
 
-      {/* 版本历史标签页 */}
-      {activeTab === 'versions' && (
+      {/* 详细信息标签页 */}
+      {activeTab === 'info' && (
         <div>
-          {document.versions.length === 0 ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#999' }}>
-              暂无版本历史
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {document.versions.map((version) => (
-                <div
-                  key={version.version}
-                  style={{
-                    padding: '16px',
-                    border: '1px solid #e0e0e0',
-                    borderRadius: '8px',
-                    backgroundColor: '#fff',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div style={{ padding: '24px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
+            <h3 style={{ marginBottom: '16px' }}>关联 PRD</h3>
+            {document.prdId ? (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ padding: '12px', backgroundColor: '#e3f2fd', borderRadius: '4px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <strong>版本 {version.version}</strong>
-                      <span style={{ marginLeft: '16px', fontSize: '12px', color: '#666' }}>
-                        {formatDate(version.uploadedAt)}
-                      </span>
+                      <strong>当前关联:</strong>{' '}
+                      <a
+                        href={`/documents/prd/${document.prdId}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate(`/documents/prd/${document.prdId}`);
+                        }}
+                        style={{ color: '#007bff', textDecoration: 'none' }}
+                      >
+                        {document.prdTitle}
+                      </a>
                     </div>
-                    <span style={{ fontSize: '12px', color: '#666' }}>
-                      上传者: {version.uploadedBy}
-                    </span>
-                  </div>
-                  {version.content && (
-                    <div
+                    <button
+                      onClick={handleUnlinkPRD}
                       style={{
-                        padding: '12px',
-                        backgroundColor: '#f5f5f5',
+                        padding: '4px 12px',
+                        backgroundColor: '#dc3545',
+                        color: 'white',
+                        border: 'none',
                         borderRadius: '4px',
+                        cursor: 'pointer',
                         fontSize: '12px',
-                        maxHeight: '200px',
-                        overflow: 'auto',
                       }}
                     >
-                      {version.content.substring(0, 500)}
-                      {version.content.length > 500 && '...'}
-                    </div>
-                  )}
+                      取消关联
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+              </div>
+            ) : (
+              <div style={{ marginBottom: '16px', color: '#999' }}>未关联 PRD</div>
+            )}
 
-      {/* UI 需求标签页 */}
-      {activeTab === 'ui-requirements' && id && (
-        <div>
-          <UIRequirementsTab prdDocumentId={id} />
+            {prdDocuments.length > 0 && (
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+                  选择 PRD 进行关联:
+                </label>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleLinkPRD(e.target.value);
+                      e.target.value = '';
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                  }}
+                >
+                  <option value="">选择 PRD...</option>
+                  {prdDocuments
+                    .filter((prd) => prd.id !== document.prdId)
+                    .map((prd) => (
+                      <option key={prd.id} value={prd.id}>
+                        {prd.title}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
+            <div style={{ marginTop: '24px' }}>
+              <h3 style={{ marginBottom: '16px' }}>文件信息</h3>
+              <div style={{ fontSize: '14px', color: '#666' }}>
+                <div>文件大小: {document.fileSize ? `${(document.fileSize / 1024).toFixed(2)} KB` : '-'}</div>
+                <div>MIME 类型: {document.mimeType || '-'}</div>
+                <div>内容类型: {document.contentType}</div>
+                {document.imageWidth && document.imageHeight && (
+                  <div>
+                    图片尺寸: {document.imageWidth} × {document.imageHeight}px
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

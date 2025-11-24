@@ -36,5 +36,13 @@ export class UpdateDocumentDto {
   @IsArray()
   @IsString({ each: true })
   tagIds?: string[];
+
+  @ApiProperty({
+    description: '关联的 PRD 文档 ID（仅用于设计稿）',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  prdId?: string;
 }
 

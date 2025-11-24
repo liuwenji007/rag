@@ -14,6 +14,7 @@ import { SearchModule } from './modules/search/search.module';
 import { DiffModule } from './modules/diff/diff.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { SchedulerModule } from './services/scheduler/scheduler.module';
+import { UIRequirementsModule } from './modules/ui-requirements/ui-requirements.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { SchedulerModule } from './services/scheduler/scheduler.module';
     DiffModule,
     DocumentsModule,
     SchedulerModule,
+    UIRequirementsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -286,6 +286,16 @@ export class DocumentsService {
             },
             take: 1, // 只获取最新版本
           },
+          designDocument: {
+            include: {
+              document: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+            },
+          },
         },
       }),
       this.prisma.document.count({ where }),
@@ -302,6 +312,8 @@ export class DocumentsService {
         uploadedBy: doc.uploadedBy,
         syncedAt: doc.syncedAt,
         updatedAt: doc.updatedAt,
+        filePath: doc.filePath,
+        imageUrl: doc.documentType === 'design' ? this.getImageUrl(doc.filePath) : null,
         tags: doc.tagRelations.map((tr) => ({
           id: tr.tag.id,
           name: tr.tag.name,
@@ -313,6 +325,15 @@ export class DocumentsService {
               uploadedAt: doc.versions[0].uploadedAt,
             }
           : null,
+        // 设计资源特有信息
+        ...(doc.documentType === 'design' && doc.designDocument
+          ? {
+              prdId: doc.designDocument.prdId,
+              prdTitle: doc.designDocument.document?.title,
+              imageWidth: doc.designDocument.width,
+              imageHeight: doc.designDocument.height,
+            }
+          : {}),
       })),
       total,
       page,
@@ -340,6 +361,16 @@ export class DocumentsService {
         versions: {
           orderBy: {
             version: 'desc',
+          },
+        },
+        designDocument: {
+          include: {
+            document: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
           },
         },
       },
@@ -375,6 +406,19 @@ export class DocumentsService {
         uploadedBy: v.uploadedBy,
         uploadedAt: v.uploadedAt,
       })),
+      // 设计资源特有信息
+      ...(document.documentType === 'design'
+        ? {
+            imageUrl: this.getImageUrl(document.filePath),
+            thumbnailUrl: document.designDocument?.thumbnailUrl
+              ? this.getImageUrl(document.designDocument.thumbnailUrl)
+              : null,
+            imageWidth: document.designDocument?.width || null,
+            imageHeight: document.designDocument?.height || null,
+            prdId: document.designDocument?.prdId || null,
+            prdTitle: document.designDocument?.document?.title || null,
+          }
+        : {}),
     };
   }
 
@@ -452,6 +496,17 @@ export class DocumentsService {
             tagId,
           })),
         });
+      }
+    }
+
+    // 更新 PRD 关联（如果文档是设计稿）
+    if (dto.prdId !== undefined && existingDocument.documentType === 'design') {
+      if (dto.prdId) {
+        // 关联 PRD
+        await this.linkPRDToDesign(documentId, dto.prdId, userId);
+      } else {
+        // 取消关联
+        await this.unlinkPRDFromDesign(documentId, userId);
       }
     }
 
@@ -614,6 +669,112 @@ export class DocumentsService {
     });
 
     return { success: true };
+  }
+
+  /**
+   * 关联 PRD 到设计稿
+   */
+  async linkPRDToDesign(
+    designDocumentId: string,
+    prdId: string,
+    userId?: string,
+  ) {
+    // 检查设计稿是否存在
+    const designDoc = await this.prisma.document.findFirst({
+      where: {
+        id: designDocumentId,
+        documentType: 'design',
+        deletedAt: null,
+        ...(userId ? { uploadedBy: userId } : {}),
+      },
+    });
+
+    if (!designDoc) {
+      throw new NotFoundException(
+        `Design document ${designDocumentId} not found`,
+      );
+    }
+
+    // 检查 PRD 是否存在
+    const prdDoc = await this.prisma.document.findFirst({
+      where: {
+        id: prdId,
+        documentType: 'prd',
+        deletedAt: null,
+      },
+    });
+
+    if (!prdDoc) {
+      throw new NotFoundException(`PRD document ${prdId} not found`);
+    }
+
+    // 创建或更新 DesignDocument 记录
+    // 如果 DesignDocument 不存在，需要创建；如果存在，只更新 prdId
+    const existingDesignDoc = await this.prisma.designDocument.findUnique({
+      where: { documentId: designDocumentId },
+    });
+
+    let designDocument;
+    if (existingDesignDoc) {
+      // 更新现有记录
+      designDocument = await this.prisma.designDocument.update({
+        where: { documentId: designDocumentId },
+        data: { prdId },
+      });
+    } else {
+      // 创建新记录
+      designDocument = await this.prisma.designDocument.create({
+        data: {
+          documentId: designDocumentId,
+          prdId,
+          imageUrl: designDoc.filePath || '',
+        },
+      });
+    }
+
+    return { success: true, designDocument };
+  }
+
+  /**
+   * 取消设计稿与 PRD 的关联
+   */
+  async unlinkPRDFromDesign(
+    designDocumentId: string,
+    userId?: string,
+  ) {
+    // 检查设计稿是否存在
+    const designDoc = await this.prisma.document.findFirst({
+      where: {
+        id: designDocumentId,
+        documentType: 'design',
+        deletedAt: null,
+        ...(userId ? { uploadedBy: userId } : {}),
+      },
+    });
+
+    if (!designDoc) {
+      throw new NotFoundException(
+        `Design document ${designDocumentId} not found`,
+      );
+    }
+
+    // 删除关联关系
+    await this.prisma.designDocument.deleteMany({
+      where: { documentId: designDocumentId },
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * 获取设计稿的图片 URL
+   */
+  getImageUrl(filePath: string | null): string | null {
+    if (!filePath) return null;
+    // 这里应该返回完整的图片访问 URL
+    // 暂时返回相对路径，后续可以根据配置生成完整 URL
+    const baseUrl = process.env.FILE_SERVE_BASE_URL || '';
+    return baseUrl ? `${baseUrl}/${filePath}` : `/uploads/${filePath}`;
   }
 }
 

@@ -262,5 +262,53 @@ export class DocumentsController {
   ) {
     return this.documentsService.removeTagFromDocument(id, tagId, userId);
   }
+
+  @Post(':id/link-prd')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '关联 PRD 到设计稿',
+    description: '将指定的 PRD 文档关联到设计稿。',
+  })
+  @ApiParam({ name: 'id', description: '设计稿文档 ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        prdId: { type: 'string', description: 'PRD 文档 ID' },
+      },
+      required: ['prdId'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '关联成功',
+  })
+  @ApiResponse({ status: 404, description: '设计稿或 PRD 不存在' })
+  async linkPRDToDesign(
+    @Param('id') id: string,
+    @Body('prdId') prdId: string,
+    @Headers('x-user-id') userId?: string,
+  ) {
+    return this.documentsService.linkPRDToDesign(id, prdId, userId);
+  }
+
+  @Delete(':id/unlink-prd')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '取消设计稿与 PRD 的关联',
+    description: '取消设计稿与 PRD 文档的关联关系。',
+  })
+  @ApiParam({ name: 'id', description: '设计稿文档 ID' })
+  @ApiResponse({
+    status: 200,
+    description: '取消关联成功',
+  })
+  @ApiResponse({ status: 404, description: '设计稿不存在' })
+  async unlinkPRDFromDesign(
+    @Param('id') id: string,
+    @Headers('x-user-id') userId?: string,
+  ) {
+    return this.documentsService.unlinkPRDFromDesign(id, userId);
+  }
 }
 

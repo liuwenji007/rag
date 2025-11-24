@@ -64,6 +64,8 @@ export interface DocumentListItem {
   uploadedBy: string | null;
   syncedAt: string;
   updatedAt: string;
+  filePath?: string | null;
+  imageUrl?: string | null;
   tags: Array<{
     id: string;
     name: string;
@@ -73,6 +75,11 @@ export interface DocumentListItem {
     version: number;
     uploadedAt: string;
   } | null;
+  // 设计资源特有字段
+  prdId?: string | null;
+  prdTitle?: string | null;
+  imageWidth?: number | null;
+  imageHeight?: number | null;
 }
 
 export interface DocumentListResponse {
@@ -109,6 +116,13 @@ export interface DocumentDetail {
     uploadedBy: string;
     uploadedAt: string;
   }>;
+  // 设计资源特有字段
+  imageUrl?: string | null;
+  thumbnailUrl?: string | null;
+  imageWidth?: number | null;
+  imageHeight?: number | null;
+  prdId?: string | null;
+  prdTitle?: string | null;
 }
 
 export interface DocumentQueryParams {
@@ -128,6 +142,7 @@ export interface UpdateDocumentRequest {
   content?: string;
   documentType?: 'prd' | 'design' | 'knowledge';
   tagIds?: string[];
+  prdId?: string; // 用于设计稿关联 PRD
 }
 
 export interface Tag {
@@ -223,6 +238,32 @@ export async function removeTagFromDocument(
 ): Promise<{ success: boolean }> {
   const response = await apiClient.delete(
     `/api/v1/documents/${documentId}/tags/${tagId}`,
+  );
+  return response as unknown as { success: boolean };
+}
+
+/**
+ * 关联 PRD 到设计稿
+ */
+export async function linkPRDToDesign(
+  designDocumentId: string,
+  prdId: string,
+): Promise<{ success: boolean }> {
+  const response = await apiClient.post(
+    `/api/v1/documents/${designDocumentId}/link-prd`,
+    { prdId },
+  );
+  return response as unknown as { success: boolean };
+}
+
+/**
+ * 取消设计稿与 PRD 的关联
+ */
+export async function unlinkPRDFromDesign(
+  designDocumentId: string,
+): Promise<{ success: boolean }> {
+  const response = await apiClient.delete(
+    `/api/v1/documents/${designDocumentId}/unlink-prd`,
   );
   return response as unknown as { success: boolean };
 }
