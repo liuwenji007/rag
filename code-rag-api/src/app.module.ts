@@ -12,6 +12,7 @@ import { SyncModule } from './modules/sync/sync.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { SearchModule } from './modules/search/search.module';
 import { DiffModule } from './modules/diff/diff.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 import { SchedulerModule } from './services/scheduler/scheduler.module';
 
 @Module({
@@ -29,6 +30,7 @@ import { SchedulerModule } from './services/scheduler/scheduler.module';
     MonitoringModule,
     SearchModule,
     DiffModule,
+    DocumentsModule,
     SchedulerModule,
   ],
   controllers: [AppController],

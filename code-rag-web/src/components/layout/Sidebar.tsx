@@ -10,6 +10,7 @@ const menuItems: MenuItem[] = [
   { path: '/', label: '数据看板' },
   { path: '/datasources', label: '数据源管理' },
   { path: '/diff-analysis', label: '差异分析' },
+  { path: '/documents/upload', label: '文档上传' },
   { path: '/search', label: '检索' },
   { path: '/documents', label: '内容管理' },
 ];

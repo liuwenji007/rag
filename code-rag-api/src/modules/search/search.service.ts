@@ -24,7 +24,7 @@ export interface SearchResult {
   document?: {
     id: string;
     title: string;
-    externalId: string;
+    externalId: string | null;
     syncedAt: Date;
   };
   datasource?: {

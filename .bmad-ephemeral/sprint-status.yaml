@@ -82,8 +82,8 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: 内容共建平台
-  epic-5: backlog
-  5-1-document-upload: backlog
+  epic-5: contexted
+  5-1-document-upload: review
   5-2-document-indexing: backlog
   5-3-prd-management: backlog
   5-4-design-resource-management: backlog

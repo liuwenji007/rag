@@ -65,18 +65,18 @@ enum DataSourceStatus {
 }
 
 model DataSource {
-  id             String          @id @default(uuid())
-  name           String
-  type           DataSourceType
-  status         DataSourceStatus @default(INACTIVE)
-  config         Json            // 公开配置信息（非敏感字段）
-  encryptedConfig String?        @db.Text // 加密的敏感配置信息（App Secret、Access Token、数据库密码等）
-  enabled        Boolean         @default(true)
-  syncSchedule   String?         // Cron 表达式，用于定时同步（如 "0 2 * * *" 表示每天凌晨 2 点）
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  lastSyncAt     DateTime?       // 最后同步时间
-  description    String?         // 数据源描述
+  id              String           @id @default(uuid())
+  name            String
+  type            DataSourceType
+  status          DataSourceStatus @default(INACTIVE)
+  config          Json // 公开配置信息（非敏感字段）
+  encryptedConfig String?          @db.Text // 加密的敏感配置信息（App Secret、Access Token、数据库密码等）
+  enabled         Boolean          @default(true)
+  syncSchedule    String? // Cron 表达式，用于定时同步（如 "0 2 * * *" 表示每天凌晨 2 点）
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  lastSyncAt      DateTime? // 最后同步时间
+  description     String? // 数据源描述
 
   syncHistories SyncHistory[]
   documents     Document[]
@@ -85,16 +85,16 @@ model DataSource {
 }
 
 model SyncHistory {
-  id           String     @id @default(uuid())
+  id           String    @id @default(uuid())
   datasourceId String
-  status       String     // success, failed, running
-  triggerType  String?    // manual, scheduled - 触发方式
+  status       String // success, failed, running
+  triggerType  String? // manual, scheduled - 触发方式
   startTime    DateTime
   endTime      DateTime?
-  itemsSynced  Int        @default(0) // 同步的项目数
-  itemsFailed  Int        @default(0) // 失败的项目数
-  errorMessage String?    // 错误信息
-  metadata     Json?      // 额外元信息
+  itemsSynced  Int       @default(0) // 同步的项目数
+  itemsFailed  Int       @default(0) // 失败的项目数
+  errorMessage String? // 错误信息
+  metadata     Json? // 额外元信息
 
   dataSource DataSource @relation(fields: [datasourceId], references: [id], onDelete: Cascade)
 
@@ -104,33 +104,136 @@ model SyncHistory {
 }
 
 model Document {
-  id           String    @id @default(uuid())
-  datasourceId String
-  externalId   String    // 外部系统 ID（如飞书文档 ID、GitLab 文件路径）
+  id           String   @id @default(uuid())
+  datasourceId String?
+  externalId   String? // 外部系统 ID（如飞书文档 ID、GitLab 文件路径）
   title        String
-  content      String?   @db.Text // 文档内容（可选，大文本）
-  contentType  String    // 内容类型：markdown, word, code, etc.
-  metadata     Json      // 元信息（作者、更新时间、链接等）
-  syncedAt     DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  content      String?  @db.Text // 文档内容（可选，大文本）
+  contentType  String // 内容类型：markdown, word, code, pdf, image, etc.
+  metadata     Json // 元信息（作者、更新时间、链接等）
+  syncedAt     DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  dataSource DataSource @relation(fields: [datasourceId], references: [id], onDelete: Cascade)
+  // 新增字段（用于手动上传的文档）
+  uploadedBy   String? // 上传用户 ID
+  documentType String? // 文档类型：prd, design, knowledge, etc.
+  filePath     String? // 文件存储路径
+  fileSize     Int? // 文件大小（字节）
+  mimeType     String? // MIME 类型
+  reviewStatus String?   @default("pending") // pending, approved, rejected
+  deletedAt    DateTime? // 软删除时间
+
+  dataSource DataSource? @relation(fields: [datasourceId], references: [id], onDelete: Cascade)
+
+  // 新增关系
+  versions       DocumentVersion[]
+  tagRelations   DocumentTagRelation[]
+  designDocument DesignDocument?
+  review         ContentReview?
 
   @@unique([datasourceId, externalId])
+  @@index([uploadedBy])
+  @@index([documentType])
+  @@index([reviewStatus])
   @@map("documents")
 }
 
+model DocumentVersion {
+  id         String   @id @default(cuid())
+  documentId String
+  version    Int // 版本号（从 1 开始递增）
+  content    String?  @db.Text
+  metadata   Json
+  uploadedBy String // 上传用户 ID
+  uploadedAt DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, version])
+  @@index([documentId])
+  @@map("document_versions")
+}
+
+model DocumentTag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String? // 标签颜色（用于 UI 显示，如 #FF5733）
+  createdAt   DateTime @default(now())
+
+  documents DocumentTagRelation[]
+
+  @@map("document_tags")
+}
+
+model DocumentTagRelation {
+  id         String @id @default(cuid())
+  documentId String
+  tagId      String
+
+  document Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag      DocumentTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, tagId])
+  @@index([documentId])
+  @@index([tagId])
+  @@map("document_tag_relations")
+}
+
+model DesignDocument {
+  id           String  @id @default(cuid())
+  documentId   String  @unique // 关联到 Document
+  prdId        String? // 关联的 PRD 文档 ID
+  imageUrl     String // 设计稿图片 URL
+  thumbnailUrl String? // 缩略图 URL
+  width        Int?
+  height       Int?
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([prdId])
+  @@map("design_documents")
+}
+
+model UIRequirement {
+  id          String   @id @default(cuid())
+  prdId       String // PRD 文档 ID
+  paragraphId String? // PRD 段落标识
+  description String   @db.Text
+  priority    String // high, medium, low
+  status      String   @default("pending") // pending, in_progress, completed
+  extractedBy String? // 提取用户 ID（如果是手动标记）
+  extractedAt DateTime @default(now())
+
+  @@index([prdId, status])
+  @@map("ui_requirements")
+}
+
+model ContentReview {
+  id           String    @id @default(cuid())
+  documentId   String    @unique
+  status       String    @default("pending") // pending, approved, rejected
+  reviewedBy   String? // 审核人 ID
+  reviewedAt   DateTime?
+  rejectReason String?   @db.Text
+  metadata     Json?
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("content_reviews")
+}
+
 model SearchHistory {
-  id             String    @id @default(uuid())
-  userId         String    // 用户 ID（从请求头或 JWT token 获取）
-  query          String    // 检索查询内容
-  role           String?   // 用户角色（UserRole: developer, product, ui）
-  resultsCount   Int       // 返回结果数量
-  adoptionStatus String?   // 采纳状态：'adopted' | 'rejected' | null
-  createdAt      DateTime  @default(now())
+  id             String   @id @default(uuid())
+  userId         String // 用户 ID（从请求头或 JWT token 获取）
+  query          String // 检索查询内容
+  role           String? // 用户角色（UserRole: developer, product, ui）
+  resultsCount   Int // 返回结果数量
+  adoptionStatus String? // 采纳状态：'adopted' | 'rejected' | null
+  createdAt      DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([userId, role])
   @@map("search_histories")
 }
-
