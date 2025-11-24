@@ -88,7 +88,7 @@ development_status:
   5-3-prd-management: review
   5-4-design-resource-management: review
   5-5-ui-requirement-extraction: review
-  5-6-content-review-workflow: backlog
+  5-6-content-review-workflow: review
   epic-5-retrospective: optional
 
   # Epic 6: 权限与审核体系

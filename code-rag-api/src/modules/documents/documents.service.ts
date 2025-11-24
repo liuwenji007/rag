@@ -111,20 +111,25 @@ export class DocumentsService {
       },
     });
 
-    // 创建文档索引任务（异步处理）
+    // 创建审核记录（文档上传后进入待审核状态）
     try {
-      await this.documentIndexingTaskService.createDocumentIndexingTask(
-        document.id,
-      );
+      await this.prisma.contentReview.create({
+        data: {
+          documentId: document.id,
+          status: 'pending',
+        },
+      });
       this.logger.log(
-        `Document indexing task created for document ${document.id}`,
+        `Content review record created for document ${document.id}`,
       );
     } catch (error) {
       this.logger.error(
-        `Failed to create indexing task for document ${document.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to create review record for document ${document.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
-      // 索引任务创建失败不影响文档上传
+      // 审核记录创建失败不影响文档上传
     }
+
+    // 注意：文档索引将在审核通过后触发，而不是上传时
 
     this.logger.log(`Document uploaded: ${document.id}`);
 

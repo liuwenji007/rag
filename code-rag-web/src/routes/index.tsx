@@ -12,6 +12,8 @@ import PRDEditPage from '../pages/documents/prd/PRDEditPage';
 import DesignListPage from '../pages/documents/designs/DesignListPage';
 import DesignDetailPage from '../pages/documents/designs/DesignDetailPage';
 import DesignEditPage from '../pages/documents/designs/DesignEditPage';
+import ReviewListPage from '../pages/reviews/ReviewListPage';
+import ReviewDetailPage from '../pages/reviews/ReviewDetailPage';
 
 function AppRoutes() {
   return (
@@ -31,6 +33,8 @@ function AppRoutes() {
             <Route path="documents/designs" element={<DesignListPage />} />
             <Route path="documents/designs/:id" element={<DesignDetailPage />} />
             <Route path="documents/designs/:id/edit" element={<DesignEditPage />} />
+            <Route path="reviews" element={<ReviewListPage />} />
+            <Route path="reviews/:id" element={<ReviewDetailPage />} />
             <Route path="search" element={<div>检索</div>} />
             <Route path="documents" element={<div>内容管理</div>} />
             <Route path="*" element={<div>404 - 页面不存在</div>} />

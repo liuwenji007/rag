@@ -15,6 +15,7 @@ import { DiffModule } from './modules/diff/diff.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { SchedulerModule } from './services/scheduler/scheduler.module';
 import { UIRequirementsModule } from './modules/ui-requirements/ui-requirements.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
 
 @Module({
   imports: [

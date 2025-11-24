@@ -13,6 +13,7 @@ const menuItems: MenuItem[] = [
   { path: '/documents/upload', label: '文档上传' },
   { path: '/documents/prd', label: 'PRD 管理' },
   { path: '/documents/designs', label: '设计资源' },
+  { path: '/reviews', label: '内容审核' },
   { path: '/search', label: '检索' },
   { path: '/documents', label: '内容管理' },
 ];
@@ -38,7 +39,8 @@ function Sidebar() {
           }}
         >
           {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname.startsWith(item.path) && item.path !== '/';
+            const isDashboardActive = location.pathname === '/' && item.path === '/';
             return (
               <li key={item.path} style={{ marginBottom: '4px' }}>
                 <Link
@@ -46,10 +48,10 @@ function Sidebar() {
                   style={{
                     display: 'block',
                     padding: '12px 20px',
-                    color: isActive ? '#3498db' : '#333',
+                    color: (isActive || isDashboardActive) ? '#3498db' : '#333',
                     textDecoration: 'none',
-                    backgroundColor: isActive ? '#e3f2fd' : 'transparent',
-                    borderLeft: isActive ? '3px solid #3498db' : '3px solid transparent',
+                    backgroundColor: (isActive || isDashboardActive) ? '#e3f2fd' : 'transparent',
+                    borderLeft: (isActive || isDashboardActive) ? '3px solid #3498db' : '3px solid transparent',
                   }}
                 >
                   {item.label}
