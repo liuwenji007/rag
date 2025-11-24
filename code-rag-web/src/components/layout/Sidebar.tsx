@@ -11,6 +11,7 @@ const menuItems: MenuItem[] = [
   { path: '/datasources', label: '数据源管理' },
   { path: '/diff-analysis', label: '差异分析' },
   { path: '/documents/upload', label: '文档上传' },
+  { path: '/documents/prd', label: 'PRD 管理' },
   { path: '/search', label: '检索' },
   { path: '/documents', label: '内容管理' },
 ];

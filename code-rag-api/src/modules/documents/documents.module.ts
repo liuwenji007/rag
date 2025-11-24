@@ -4,9 +4,14 @@ import { DocumentsService } from './documents.service';
 import { PrismaService } from '../../database/prisma.service';
 import { FileStorageModule } from '../../services/file-storage/file-storage.module';
 import { DocumentParserModule } from '../../services/document-parser/document-parser.module';
+import { DocumentIndexingModule } from '../../services/document-indexing/document-indexing.module';
 
 @Module({
-  imports: [FileStorageModule, DocumentParserModule],
+  imports: [
+    FileStorageModule,
+    DocumentParserModule,
+    DocumentIndexingModule,
+  ],
   controllers: [DocumentsController],
   providers: [DocumentsService, PrismaService],
   exports: [DocumentsService],

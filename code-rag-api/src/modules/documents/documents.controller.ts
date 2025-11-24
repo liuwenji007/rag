@@ -1,17 +1,32 @@
 import {
   Controller,
   Post,
+  Get,
+  Put,
+  Delete,
   UseInterceptors,
   UploadedFile,
   Body,
+  Param,
+  Query,
   HttpCode,
   HttpStatus,
   Headers,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiConsumes,
+  ApiBody,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { DocumentsService } from './documents.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
+import { DocumentQueryDto } from './dto/document-query.dto';
+import { UpdateDocumentDto } from './dto/update-document.dto';
 
 @ApiTags('documents')
 @Controller('documents')
@@ -90,6 +105,162 @@ export class DocumentsController {
     );
 
     return result;
+  }
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '查询文档列表',
+    description: '支持按类型、标题、标签、时间范围等条件筛选，支持分页和排序。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '查询成功',
+    schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'number', example: 200 },
+        message: { type: 'string', example: 'success' },
+        data: {
+          type: 'object',
+          properties: {
+            documents: { type: 'array', items: { type: 'object' } },
+            total: { type: 'number', example: 100 },
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 20 },
+            totalPages: { type: 'number', example: 5 },
+          },
+        },
+      },
+    },
+  })
+  async getDocuments(
+    @Query() query: DocumentQueryDto,
+    @Headers('x-user-id') userId?: string,
+  ) {
+    return this.documentsService.getDocuments(query, userId);
+  }
+
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '获取文档详情',
+    description: '获取文档的完整信息，包括内容、元信息、版本历史等。',
+  })
+  @ApiParam({ name: 'id', description: '文档 ID' })
+  @ApiResponse({
+    status: 200,
+    description: '查询成功',
+  })
+  @ApiResponse({ status: 404, description: '文档不存在' })
+  async getDocumentById(
+    @Param('id') id: string,
+    @Headers('x-user-id') userId?: string,
+  ) {
+    return this.documentsService.getDocumentById(id, userId);
+  }
+
+  @Put(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '更新文档',
+    description: '更新文档标题、内容、类型或标签。内容更新时会创建新版本并重新索引。',
+  })
+  @ApiParam({ name: 'id', description: '文档 ID' })
+  @ApiResponse({
+    status: 200,
+    description: '更新成功',
+  })
+  @ApiResponse({ status: 404, description: '文档不存在' })
+  async updateDocument(
+    @Param('id') id: string,
+    @Body() dto: UpdateDocumentDto,
+    @Headers('x-user-id') userId?: string,
+  ) {
+    return this.documentsService.updateDocument(id, dto, userId);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '删除文档',
+    description: '软删除文档，保留历史记录。同时删除向量数据库中的索引。',
+  })
+  @ApiParam({ name: 'id', description: '文档 ID' })
+  @ApiResponse({
+    status: 200,
+    description: '删除成功',
+  })
+  @ApiResponse({ status: 404, description: '文档不存在' })
+  async deleteDocument(
+    @Param('id') id: string,
+    @Headers('x-user-id') userId?: string,
+  ) {
+    return this.documentsService.deleteDocument(id, userId);
+  }
+
+  @Get('tags/all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '获取所有标签',
+    description: '获取系统中所有可用的文档标签。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '查询成功',
+  })
+  async getAllTags() {
+    return this.documentsService.getAllTags();
+  }
+
+  @Post(':id/tags')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '为文档添加标签',
+    description: '为指定文档添加一个标签。',
+  })
+  @ApiParam({ name: 'id', description: '文档 ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        tagId: { type: 'string', description: '标签 ID' },
+      },
+      required: ['tagId'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '添加成功',
+  })
+  @ApiResponse({ status: 404, description: '文档或标签不存在' })
+  async addTagToDocument(
+    @Param('id') id: string,
+    @Body('tagId') tagId: string,
+    @Headers('x-user-id') userId?: string,
+  ) {
+    return this.documentsService.addTagToDocument(id, tagId, userId);
+  }
+
+  @Delete(':id/tags/:tagId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '从文档删除标签',
+    description: '从指定文档删除一个标签。',
+  })
+  @ApiParam({ name: 'id', description: '文档 ID' })
+  @ApiParam({ name: 'tagId', description: '标签 ID' })
+  @ApiResponse({
+    status: 200,
+    description: '删除成功',
+  })
+  @ApiResponse({ status: 404, description: '文档不存在' })
+  async removeTagFromDocument(
+    @Param('id') id: string,
+    @Param('tagId') tagId: string,
+    @Headers('x-user-id') userId?: string,
+  ) {
+    return this.documentsService.removeTagFromDocument(id, tagId, userId);
   }
 }
 

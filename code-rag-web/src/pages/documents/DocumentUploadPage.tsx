@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { uploadDocument } from '../../services/documents';
 import type { UploadDocumentRequest } from '../../services/documents';
 
@@ -17,9 +18,18 @@ interface UploadFile {
 }
 
 export default function DocumentUploadPage() {
+  const [searchParams] = useSearchParams();
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [documentType, setDocumentType] = useState<'prd' | 'design' | 'knowledge' | ''>('');
   const [isDragging, setIsDragging] = useState(false);
+
+  // 从 URL 参数中获取文档类型
+  useEffect(() => {
+    const type = searchParams.get('type');
+    if (type === 'prd' || type === 'design' || type === 'knowledge') {
+      setDocumentType(type);
+    }
+  }, [searchParams]);
 
   const handleFileSelect = useCallback((selectedFiles: FileList | null) => {
     if (!selectedFiles) return;

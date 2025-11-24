@@ -6,6 +6,9 @@ import DatasourceList from '../pages/datasources/DatasourceList';
 import DatasourceForm from '../pages/datasources/DatasourceForm';
 import DiffAnalysisPage from '../pages/diff-analysis/DiffAnalysisPage';
 import DocumentUploadPage from '../pages/documents/DocumentUploadPage';
+import PRDListPage from '../pages/documents/prd/PRDListPage';
+import PRDDetailPage from '../pages/documents/prd/PRDDetailPage';
+import PRDEditPage from '../pages/documents/prd/PRDEditPage';
 
 function AppRoutes() {
   return (
@@ -19,6 +22,9 @@ function AppRoutes() {
             <Route path="datasources/:id/edit" element={<DatasourceForm />} />
             <Route path="diff-analysis" element={<DiffAnalysisPage />} />
             <Route path="documents/upload" element={<DocumentUploadPage />} />
+            <Route path="documents/prd" element={<PRDListPage />} />
+            <Route path="documents/prd/:id" element={<PRDDetailPage />} />
+            <Route path="documents/prd/:id/edit" element={<PRDEditPage />} />
             <Route path="search" element={<div>检索</div>} />
             <Route path="documents" element={<div>内容管理</div>} />
             <Route path="*" element={<div>404 - 页面不存在</div>} />

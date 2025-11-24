@@ -1,10 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { FileStorageService } from '../../services/file-storage/file-storage.service';
 import { DocumentParserService } from '../../services/document-parser/document-parser.service';
+import { DocumentIndexingTaskService } from '../../services/document-indexing/document-indexing-task.service';
+import { DocumentIndexingService } from '../../services/document-indexing/document-indexing.service';
 import { Readable } from 'stream';
 import { DocumentType } from './dto/upload-document.dto';
+import { DocumentQueryDto, SortField, SortOrder } from './dto/document-query.dto';
+import { UpdateDocumentDto } from './dto/update-document.dto';
 
 @Injectable()
 export class DocumentsService {
@@ -24,6 +28,8 @@ export class DocumentsService {
     private readonly prisma: PrismaService,
     private readonly fileStorage: FileStorageService,
     private readonly documentParser: DocumentParserService,
+    private readonly documentIndexingTaskService: DocumentIndexingTaskService,
+    private readonly documentIndexingService: DocumentIndexingService,
   ) {}
 
   /**
@@ -105,6 +111,21 @@ export class DocumentsService {
       },
     });
 
+    // 创建文档索引任务（异步处理）
+    try {
+      await this.documentIndexingTaskService.createDocumentIndexingTask(
+        document.id,
+      );
+      this.logger.log(
+        `Document indexing task created for document ${document.id}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to create indexing task for document ${document.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      // 索引任务创建失败不影响文档上传
+    }
+
     this.logger.log(`Document uploaded: ${document.id}`);
 
     return {
@@ -159,6 +180,440 @@ export class DocumentsService {
       'image/svg+xml': 'image',
     };
     return mapping[mimeType] || 'unknown';
+  }
+
+  /**
+   * 查询文档列表
+   */
+  async getDocuments(
+    query: DocumentQueryDto,
+    userId?: string,
+  ): Promise<{
+    documents: unknown[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const {
+      type,
+      page = 1,
+      limit = 20,
+      search,
+      tags,
+      startDate,
+      endDate,
+      sort = SortField.CREATED_AT,
+      order = SortOrder.DESC,
+    } = query;
+
+    const skip = (page - 1) * limit;
+
+    // 构建查询条件
+    const where: Prisma.DocumentWhereInput = {
+      deletedAt: null, // 只查询未删除的文档
+    };
+
+    // 文档类型筛选
+    if (type) {
+      where.documentType = type;
+    }
+
+    // 标题搜索
+    if (search) {
+      where.title = {
+        contains: search,
+        mode: 'insensitive',
+      };
+    }
+
+    // 时间范围筛选
+    if (startDate || endDate) {
+      where.syncedAt = {};
+      if (startDate) {
+        where.syncedAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        where.syncedAt.lte = new Date(endDate);
+      }
+    }
+
+    // 标签筛选
+    if (tags) {
+      const tagNames = tags.split(',').map((t) => t.trim());
+      where.tagRelations = {
+        some: {
+          tag: {
+            name: {
+              in: tagNames,
+            },
+          },
+        },
+      };
+    }
+
+    // 权限控制：产品角色只能查看自己上传的文档
+    if (userId) {
+      where.uploadedBy = userId;
+    }
+
+    // 排序
+    const orderBy: Prisma.DocumentOrderByWithRelationInput = {};
+    if (sort === SortField.CREATED_AT) {
+      orderBy.syncedAt = order;
+    } else if (sort === SortField.UPDATED_AT) {
+      orderBy.updatedAt = order;
+    } else if (sort === SortField.TITLE) {
+      orderBy.title = order;
+    }
+
+    // 查询文档
+    const [documents, total] = await Promise.all([
+      this.prisma.document.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        include: {
+          tagRelations: {
+            include: {
+              tag: true,
+            },
+          },
+          versions: {
+            orderBy: {
+              version: 'desc',
+            },
+            take: 1, // 只获取最新版本
+          },
+        },
+      }),
+      this.prisma.document.count({ where }),
+    ]);
+
+    return {
+      documents: documents.map((doc) => ({
+        id: doc.id,
+        title: doc.title,
+        documentType: doc.documentType,
+        contentType: doc.contentType,
+        fileSize: doc.fileSize,
+        mimeType: doc.mimeType,
+        uploadedBy: doc.uploadedBy,
+        syncedAt: doc.syncedAt,
+        updatedAt: doc.updatedAt,
+        tags: doc.tagRelations.map((tr) => ({
+          id: tr.tag.id,
+          name: tr.tag.name,
+          color: tr.tag.color,
+        })),
+        latestVersion: doc.versions[0]
+          ? {
+              version: doc.versions[0].version,
+              uploadedAt: doc.versions[0].uploadedAt,
+            }
+          : null,
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * 获取文档详情
+   */
+  async getDocumentById(documentId: string, userId?: string) {
+    const document = await this.prisma.document.findFirst({
+      where: {
+        id: documentId,
+        deletedAt: null,
+        ...(userId ? { uploadedBy: userId } : {}),
+      },
+      include: {
+        tagRelations: {
+          include: {
+            tag: true,
+          },
+        },
+        versions: {
+          orderBy: {
+            version: 'desc',
+          },
+        },
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+
+    return {
+      id: document.id,
+      title: document.title,
+      content: document.content,
+      documentType: document.documentType,
+      contentType: document.contentType,
+      filePath: document.filePath,
+      fileSize: document.fileSize,
+      mimeType: document.mimeType,
+      uploadedBy: document.uploadedBy,
+      syncedAt: document.syncedAt,
+      updatedAt: document.updatedAt,
+      metadata: document.metadata,
+      tags: document.tagRelations.map((tr) => ({
+        id: tr.tag.id,
+        name: tr.tag.name,
+        color: tr.tag.color,
+        description: tr.tag.description,
+      })),
+      versions: document.versions.map((v) => ({
+        version: v.version,
+        content: v.content,
+        metadata: v.metadata,
+        uploadedBy: v.uploadedBy,
+        uploadedAt: v.uploadedAt,
+      })),
+    };
+  }
+
+  /**
+   * 更新文档
+   */
+  async updateDocument(
+    documentId: string,
+    dto: UpdateDocumentDto,
+    userId?: string,
+  ) {
+    // 检查文档是否存在
+    const existingDocument = await this.prisma.document.findFirst({
+      where: {
+        id: documentId,
+        deletedAt: null,
+        ...(userId ? { uploadedBy: userId } : {}),
+      },
+    });
+
+    if (!existingDocument) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+
+    // 获取当前最大版本号
+    const latestVersion = await this.prisma.documentVersion.findFirst({
+      where: { documentId },
+      orderBy: { version: 'desc' },
+    });
+
+    const nextVersion = (latestVersion?.version || 0) + 1;
+
+    // 更新文档
+    const updateData: Prisma.DocumentUpdateInput = {};
+    if (dto.title !== undefined) {
+      updateData.title = dto.title;
+    }
+    if (dto.content !== undefined) {
+      updateData.content = dto.content;
+    }
+    if (dto.documentType !== undefined) {
+      updateData.documentType = dto.documentType;
+    }
+
+    const updatedDocument = await this.prisma.document.update({
+      where: { id: documentId },
+      data: updateData,
+    });
+
+    // 创建新版本
+    if (dto.content !== undefined || dto.title !== undefined) {
+      await this.prisma.documentVersion.create({
+        data: {
+          documentId,
+          version: nextVersion,
+          content: dto.content ?? existingDocument.content,
+          metadata: existingDocument.metadata as Prisma.InputJsonValue,
+          uploadedBy: userId || existingDocument.uploadedBy || 'system',
+        },
+      });
+    }
+
+    // 更新标签
+    if (dto.tagIds !== undefined) {
+      // 删除现有标签关系
+      await this.prisma.documentTagRelation.deleteMany({
+        where: { documentId },
+      });
+
+      // 创建新的标签关系
+      if (dto.tagIds.length > 0) {
+        await this.prisma.documentTagRelation.createMany({
+          data: dto.tagIds.map((tagId) => ({
+            documentId,
+            tagId,
+          })),
+        });
+      }
+    }
+
+    // 如果内容更新，重新索引
+    if (dto.content !== undefined) {
+      try {
+        await this.documentIndexingTaskService.createDocumentIndexingTask(
+          documentId,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Failed to re-index document ${documentId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      }
+    }
+
+    return {
+      id: updatedDocument.id,
+      title: updatedDocument.title,
+      documentType: updatedDocument.documentType,
+      updatedAt: updatedDocument.updatedAt,
+    };
+  }
+
+  /**
+   * 删除文档（软删除）
+   */
+  async deleteDocument(documentId: string, userId?: string) {
+    const document = await this.prisma.document.findFirst({
+      where: {
+        id: documentId,
+        deletedAt: null,
+        ...(userId ? { uploadedBy: userId } : {}),
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+
+    // 软删除
+    await this.prisma.document.update({
+      where: { id: documentId },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+
+    // 删除向量数据库中的索引
+    try {
+      await this.documentIndexingService.deleteDocumentIndex(documentId);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to delete index for document ${documentId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * 获取所有标签
+   */
+  async getAllTags() {
+    const tags = await this.prisma.documentTag.findMany({
+      orderBy: { name: 'asc' },
+    });
+
+    return tags.map((tag) => ({
+      id: tag.id,
+      name: tag.name,
+      description: tag.description,
+      color: tag.color,
+      createdAt: tag.createdAt,
+    }));
+  }
+
+  /**
+   * 为文档添加标签
+   */
+  async addTagToDocument(
+    documentId: string,
+    tagId: string,
+    userId?: string,
+  ) {
+    // 检查文档是否存在
+    const document = await this.prisma.document.findFirst({
+      where: {
+        id: documentId,
+        deletedAt: null,
+        ...(userId ? { uploadedBy: userId } : {}),
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+
+    // 检查标签是否存在
+    const tag = await this.prisma.documentTag.findUnique({
+      where: { id: tagId },
+    });
+
+    if (!tag) {
+      throw new NotFoundException(`Tag ${tagId} not found`);
+    }
+
+    // 检查关系是否已存在
+    const existingRelation = await this.prisma.documentTagRelation.findUnique({
+      where: {
+        documentId_tagId: {
+          documentId,
+          tagId,
+        },
+      },
+    });
+
+    if (existingRelation) {
+      return { success: true, message: 'Tag already added' };
+    }
+
+    // 创建标签关系
+    await this.prisma.documentTagRelation.create({
+      data: {
+        documentId,
+        tagId,
+      },
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * 从文档删除标签
+   */
+  async removeTagFromDocument(
+    documentId: string,
+    tagId: string,
+    userId?: string,
+  ) {
+    // 检查文档是否存在
+    const document = await this.prisma.document.findFirst({
+      where: {
+        id: documentId,
+        deletedAt: null,
+        ...(userId ? { uploadedBy: userId } : {}),
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+
+    // 删除标签关系
+    await this.prisma.documentTagRelation.deleteMany({
+      where: {
+        documentId,
+        tagId,
+      },
+    });
+
+    return { success: true };
   }
 }
 
