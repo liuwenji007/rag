@@ -12,10 +12,9 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// 请求拦截器 - 用于添加 SSO token
+// 请求拦截器 - 用于添加 JWT token
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // TODO: 从 localStorage 或 cookie 获取 SSO token
     const token = localStorage.getItem('token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -50,7 +49,9 @@ apiClient.interceptors.response.use(
         case 401:
           // 未授权，清除 token 并跳转到登录页
           localStorage.removeItem('token');
-          // TODO: 跳转到登录页
+          if (window.location.pathname !== '/auth/login') {
+            window.location.href = '/auth/login';
+          }
           break;
         case 403:
           // 禁止访问

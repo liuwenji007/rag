@@ -17,10 +17,12 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String?
+  password  String?  // 密码（可选，SSO 用户不需要密码）
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  roles UserRole[]
+  roles     UserRole[]
+  loginLogs LoginLog[]
 
   @@map("users")
 }
@@ -236,4 +238,20 @@ model SearchHistory {
   @@index([userId, createdAt])
   @@index([userId, role])
   @@map("search_histories")
+}
+
+model LoginLog {
+  id        String   @id @default(uuid())
+  userId    String
+  loginType String   // password, sso_saml, sso_oauth2
+  ipAddress String?
+  userAgent String?
+  success   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("login_logs")
 }

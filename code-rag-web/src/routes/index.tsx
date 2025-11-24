@@ -14,13 +14,25 @@ import DesignDetailPage from '../pages/documents/designs/DesignDetailPage';
 import DesignEditPage from '../pages/documents/designs/DesignEditPage';
 import ReviewListPage from '../pages/reviews/ReviewListPage';
 import ReviewDetailPage from '../pages/reviews/ReviewDetailPage';
+import LoginPage from '../pages/auth/LoginPage';
+import ProtectedRoute from '../components/auth/ProtectedRoute';
 
 function AppRoutes() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Layout><Outlet /></Layout>}>
+          <Route path="/auth/login" element={<LoginPage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Outlet />
+                </Layout>
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<Dashboard />} />
             <Route path="datasources" element={<DatasourceList />} />
             <Route path="datasources/new" element={<DatasourceForm />} />

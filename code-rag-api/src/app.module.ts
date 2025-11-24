@@ -16,6 +16,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { SchedulerModule } from './services/scheduler/scheduler.module';
 import { UIRequirementsModule } from './modules/ui-requirements/ui-requirements.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -35,6 +36,8 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
     DocumentsModule,
     SchedulerModule,
     UIRequirementsModule,
+    ReviewsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [
