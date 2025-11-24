@@ -4,6 +4,7 @@ import ErrorBoundary from '../components/common/ErrorBoundary';
 import Dashboard from '../pages/Dashboard';
 import DatasourceList from '../pages/datasources/DatasourceList';
 import DatasourceForm from '../pages/datasources/DatasourceForm';
+import DiffAnalysisPage from '../pages/diff-analysis/DiffAnalysisPage';
 
 function AppRoutes() {
   return (
@@ -15,6 +16,7 @@ function AppRoutes() {
             <Route path="datasources" element={<DatasourceList />} />
             <Route path="datasources/new" element={<DatasourceForm />} />
             <Route path="datasources/:id/edit" element={<DatasourceForm />} />
+            <Route path="diff-analysis" element={<DiffAnalysisPage />} />
             <Route path="search" element={<div>检索</div>} />
             <Route path="documents" element={<div>内容管理</div>} />
             <Route path="*" element={<div>404 - 页面不存在</div>} />

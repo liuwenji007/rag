@@ -6,19 +6,26 @@ import {
   HttpStatus,
   Res,
   Header,
+  Get,
+  Param,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { DiffService } from './diff.service';
+import { DiffTaskService } from './diff-task.service';
 import { AnalyzeRequirementDto } from './dto/analyze-requirement.dto';
 import { MatchCodeDto, MatchCodeBatchDto } from './dto/match-code.dto';
 import { GenerateSummaryDto } from './dto/generate-summary.dto';
 import { GenerateTodosDto, ExportFormat } from './dto/generate-todos.dto';
+import { AnalyzeDiffDto } from './dto/analyze-diff.dto';
 
 @ApiTags('diff')
 @Controller('diff')
 export class DiffController {
-  constructor(private readonly diffService: DiffService) {}
+  constructor(
+    private readonly diffService: DiffService,
+    private readonly diffTaskService: DiffTaskService,
+  ) {}
 
   /**
    * 解析需求并识别变更点
@@ -377,6 +384,148 @@ export class DiffController {
         content: exportedContent,
       },
     };
+  }
+
+  /**
+   * 执行完整的差异分析（同步模式）
+   */
+  @Post('analyze')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '执行完整的差异分析（同步模式）',
+    description:
+      '执行完整的差异分析流程，包括需求解析、代码匹配、差异总结和待办列表生成。同步返回所有结果。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '差异分析成功',
+    schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'number', example: 200 },
+        message: { type: 'string', example: 'success' },
+        data: {
+          type: 'object',
+          properties: {
+            requirement: { type: 'string' },
+            role: { type: 'string', nullable: true },
+            changes: { type: 'object' },
+            codeRecommendations: { type: 'array' },
+            summary: { type: 'string' },
+            todos: { type: 'array' },
+            generatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: '请求参数错误' })
+  async analyzeDiff(@Body() dto: AnalyzeDiffDto) {
+    const result = await this.diffService.analyzeDiff(dto.requirement, {
+      role: dto.role,
+      includeCodeMatches: dto.includeCodeMatches,
+      includePRDFragments: dto.includePRDFragments,
+      includeSummary: dto.includeSummary,
+      includeTodos: dto.includeTodos,
+      codeMatchTopK: dto.codeMatchTopK,
+      prdTopK: dto.prdTopK,
+    });
+    return result;
+  }
+
+  /**
+   * 创建异步差异分析任务
+   */
+  @Post('analyze/async')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: '创建异步差异分析任务',
+    description:
+      '创建异步差异分析任务，立即返回任务 ID。通过 GET /api/v1/diff/tasks/:taskId 查询任务状态和结果。',
+  })
+  @ApiResponse({
+    status: 202,
+    description: '任务创建成功',
+    schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'number', example: 202 },
+        message: { type: 'string', example: 'Task created' },
+        data: {
+          type: 'object',
+          properties: {
+            taskId: { type: 'string' },
+            status: { type: 'string', enum: ['pending'] },
+            createdAt: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: '请求参数错误' })
+  async createDiffAnalysisTask(@Body() dto: AnalyzeDiffDto) {
+    const taskId = await this.diffTaskService.createTask(dto.requirement, {
+      role: dto.role,
+      includeCodeMatches: dto.includeCodeMatches,
+      includePRDFragments: dto.includePRDFragments,
+      includeSummary: dto.includeSummary,
+      includeTodos: dto.includeTodos,
+      codeMatchTopK: dto.codeMatchTopK,
+      prdTopK: dto.prdTopK,
+    });
+
+    const task = this.diffTaskService.getTaskStatus(taskId);
+    return {
+      taskId,
+      status: task?.status || 'pending',
+      createdAt: task?.createdAt || new Date(),
+    };
+  }
+
+  /**
+   * 查询差异分析任务状态
+   */
+  @Get('tasks/:taskId')
+  @ApiOperation({
+    summary: '查询差异分析任务状态',
+    description: '根据任务 ID 查询差异分析任务的状态和结果。',
+  })
+  @ApiParam({
+    name: 'taskId',
+    description: '任务 ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '查询成功',
+    schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'number', example: 200 },
+        message: { type: 'string', example: 'success' },
+        data: {
+          type: 'object',
+          properties: {
+            taskId: { type: 'string' },
+            status: {
+              type: 'string',
+              enum: ['pending', 'processing', 'completed', 'failed'],
+            },
+            result: { type: 'object', nullable: true },
+            error: { type: 'string', nullable: true },
+            createdAt: { type: 'string', format: 'date-time' },
+            completedAt: { type: 'string', format: 'date-time', nullable: true },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: '任务不存在' })
+  async getTaskStatus(@Param('taskId') taskId: string) {
+    const task = this.diffTaskService.getTaskStatus(taskId);
+    if (!task) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+    return task;
   }
 }
 

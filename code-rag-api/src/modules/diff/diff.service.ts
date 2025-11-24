@@ -16,6 +16,7 @@ import type {
   CodeContext,
 } from './interfaces/code-matching.interface';
 import type { TodoList, TodoItem } from './interfaces/todo.interface';
+import type { DiffAnalysisResult, DiffAnalysisTask } from './interfaces/diff-analysis.interface';
 
 @Injectable()
 export class DiffService {
@@ -818,6 +819,81 @@ ${requirementParsing.modifiedFeatures
 
     markdown += `---\n\n`;
     return markdown;
+  }
+
+  /**
+   * 执行完整的差异分析（同步模式）
+   */
+  async analyzeDiff(
+    requirement: string,
+    options?: {
+      role?: string;
+      includeCodeMatches?: boolean;
+      includePRDFragments?: boolean;
+      includeSummary?: boolean;
+      includeTodos?: boolean;
+      codeMatchTopK?: number;
+      prdTopK?: number;
+    },
+  ): Promise<DiffAnalysisResult> {
+    try {
+      // 1. 解析需求
+      const changes = await this.parseRequirement(requirement);
+
+      // 2. 匹配历史代码
+      let codeRecommendations: CodeMatchResult[] = [];
+      if (options?.includeCodeMatches !== false) {
+        const allChangePoints = [
+          ...changes.newFeatures.map((f) => f.description),
+          ...changes.modifiedFeatures.map((f) => f.description),
+        ];
+        if (allChangePoints.length > 0) {
+          codeRecommendations = await this.matchCodeForChangePoints(
+            allChangePoints,
+            {
+              topK: options?.codeMatchTopK ?? 5,
+              minScore: 0.6,
+            },
+          );
+        }
+      }
+
+      // 3. 生成差异总结
+      let summary = '';
+      if (options?.includeSummary !== false) {
+        summary = await this.generateDiffSummary(requirement, {
+          includeCodeMatches: options?.includeCodeMatches,
+          includePRDFragments: options?.includePRDFragments,
+          codeMatchTopK: options?.codeMatchTopK,
+          prdTopK: options?.prdTopK,
+        });
+      }
+
+      // 4. 生成待办列表
+      let todos: TodoItem[] = [];
+      if (options?.includeTodos !== false) {
+        const todoList = await this.generateTodos(requirement, {
+          includeCodeMatches: options?.includeCodeMatches,
+          codeMatchTopK: options?.codeMatchTopK,
+        });
+        todos = todoList.todos;
+      }
+
+      return {
+        requirement,
+        role: options?.role,
+        changes,
+        codeRecommendations,
+        summary,
+        todos,
+        generatedAt: new Date(),
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to analyze diff: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw error;
+    }
   }
 }
 
