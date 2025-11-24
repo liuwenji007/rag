@@ -10,7 +10,11 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -26,6 +30,8 @@ import { UpdateUIRequirementDto } from './dto/update-ui-requirement.dto';
 
 @ApiTags('ui-requirements')
 @Controller('documents/:id/ui-requirements')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin', 'ui')
 export class UIRequirementsController {
   constructor(
     private readonly uiRequirementsService: UIRequirementsService,

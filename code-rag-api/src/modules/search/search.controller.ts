@@ -1,4 +1,7 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Headers, Query, Res, Get, Param, Patch } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Headers, Query, Res, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
@@ -10,6 +13,8 @@ import { UserRole } from './types/role.types';
 
 @ApiTags('search')
 @Controller('search')
+@UseGuards(JwtAuthGuard, RolesGuard)
+// 检索功能所有角色都可以访问
 export class SearchController {
   constructor(
     private readonly searchService: SearchService,
@@ -210,6 +215,7 @@ export class SearchController {
    * 获取检索历史
    */
   @Get('history')
+  @Roles('admin', 'developer')
   @ApiOperation({
     summary: '获取检索历史',
     description: '获取用户的检索历史记录，支持分页和筛选。',
@@ -317,6 +323,7 @@ export class SearchController {
    * 获取团队检索统计
    */
   @Get('history/stats')
+  @Roles('admin', 'developer')
   @ApiOperation({
     summary: '获取团队检索统计',
     description: '获取团队的检索统计信息，包括热门查询、采纳率、角色分布等。',

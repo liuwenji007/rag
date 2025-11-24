@@ -94,8 +94,8 @@ development_status:
   # Epic 6: 权限与审核体系
   epic-6: contexted
   6-1-sso-authentication: review
-  6-2-role-permissions: backlog
-  6-3-permission-configuration: backlog
+  6-2-role-permissions: done
+  6-3-permission-configuration: review
   6-4-feedback-mechanism: backlog
   6-5-audit-logging: backlog
   6-6-suspected-result-confirmation: backlog

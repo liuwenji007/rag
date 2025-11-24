@@ -8,7 +8,11 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -24,6 +28,8 @@ import { RejectReviewDto } from './dto/reject-review.dto';
 
 @ApiTags('reviews')
 @Controller('reviews')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin')
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 

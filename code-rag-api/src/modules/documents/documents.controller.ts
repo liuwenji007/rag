@@ -12,7 +12,12 @@ import {
   HttpCode,
   HttpStatus,
   Headers,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
@@ -30,12 +35,14 @@ import { UpdateDocumentDto } from './dto/update-document.dto';
 
 @ApiTags('documents')
 @Controller('documents')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}
 
   @Post('upload')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
+  @Roles('admin', 'product', 'ui')
   @ApiOperation({
     summary: '上传文档',
     description: '支持上传 Markdown、Word、PDF、图片等格式的文档。文件大小限制为 50MB。',
@@ -136,9 +143,11 @@ export class DocumentsController {
   })
   async getDocuments(
     @Query() query: DocumentQueryDto,
-    @Headers('x-user-id') userId?: string,
+    @Request() req: { user?: { id?: string; roles?: string[] } },
   ) {
-    return this.documentsService.getDocuments(query, userId);
+    const userId = req.user?.id;
+    const userRoles = req.user?.roles;
+    return this.documentsService.getDocuments(query, userId, userRoles);
   }
 
   @Get(':id')

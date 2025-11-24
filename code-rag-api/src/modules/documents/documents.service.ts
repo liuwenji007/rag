@@ -193,6 +193,7 @@ export class DocumentsService {
   async getDocuments(
     query: DocumentQueryDto,
     userId?: string,
+    userRoles?: string[],
   ): Promise<{
     documents: unknown[];
     total: number;
@@ -257,9 +258,38 @@ export class DocumentsService {
       };
     }
 
-    // 权限控制：产品角色只能查看自己上传的文档
-    if (userId) {
-      where.uploadedBy = userId;
+    // 权限控制：根据用户角色过滤文档
+    // 管理员可以查看所有文档
+    // 产品角色只能查看 PRD 文档和自己上传的文档
+    // UI 角色只能查看设计稿和自己上传的文档
+    // 开发角色只能查看自己上传的文档
+    if (userRoles && !userRoles.includes('admin')) {
+      if (userRoles.includes('product')) {
+        // 产品角色：只能查看 PRD 文档或自己上传的文档
+        if (type === DocumentType.PRD) {
+          // 查看所有 PRD 文档
+        } else {
+          // 其他类型只能查看自己上传的
+          if (userId) {
+            where.uploadedBy = userId;
+          }
+        }
+      } else if (userRoles.includes('ui')) {
+        // UI 角色：只能查看设计稿或自己上传的文档
+        if (type === DocumentType.DESIGN) {
+          // 查看所有设计稿
+        } else {
+          // 其他类型只能查看自己上传的
+          if (userId) {
+            where.uploadedBy = userId;
+          }
+        }
+      } else {
+        // 其他角色（如 developer）：只能查看自己上传的文档
+        if (userId) {
+          where.uploadedBy = userId;
+        }
+      }
     }
 
     // 排序

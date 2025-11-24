@@ -14,6 +14,7 @@ import DesignDetailPage from '../pages/documents/designs/DesignDetailPage';
 import DesignEditPage from '../pages/documents/designs/DesignEditPage';
 import ReviewListPage from '../pages/reviews/ReviewListPage';
 import ReviewDetailPage from '../pages/reviews/ReviewDetailPage';
+import PermissionsPage from '../pages/permissions/PermissionsPage';
 import LoginPage from '../pages/auth/LoginPage';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
@@ -47,6 +48,7 @@ function AppRoutes() {
             <Route path="documents/designs/:id/edit" element={<DesignEditPage />} />
             <Route path="reviews" element={<ReviewListPage />} />
             <Route path="reviews/:id" element={<ReviewDetailPage />} />
+            <Route path="permissions" element={<PermissionsPage />} />
             <Route path="search" element={<div>检索</div>} />
             <Route path="documents" element={<div>内容管理</div>} />
             <Route path="*" element={<div>404 - 页面不存在</div>} />

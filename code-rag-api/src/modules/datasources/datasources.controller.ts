@@ -9,7 +9,11 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { DatasourcesService } from './datasources.service';
 import { SyncService } from '../sync/sync.service';
 import { SchedulerService } from '../../services/scheduler/scheduler.service';
@@ -19,6 +23,8 @@ import { UpdateDataSourceDto } from './dto/update-datasource.dto';
 import { TestConnectionDto } from './dto/test-connection.dto';
 
 @Controller('data-sources')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin')
 export class DatasourcesController {
   constructor(
     private readonly datasourcesService: DatasourcesService,

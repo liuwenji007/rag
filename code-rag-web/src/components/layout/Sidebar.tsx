@@ -1,25 +1,37 @@
 import { Link, useLocation } from 'react-router-dom';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface MenuItem {
   path: string;
   label: string;
   icon?: string;
+  permission?: keyof ReturnType<typeof usePermissions>['permissions'];
 }
 
-const menuItems: MenuItem[] = [
+const allMenuItems: MenuItem[] = [
   { path: '/', label: '数据看板' },
-  { path: '/datasources', label: '数据源管理' },
-  { path: '/diff-analysis', label: '差异分析' },
-  { path: '/documents/upload', label: '文档上传' },
-  { path: '/documents/prd', label: 'PRD 管理' },
-  { path: '/documents/designs', label: '设计资源' },
-  { path: '/reviews', label: '内容审核' },
-  { path: '/search', label: '检索' },
+  { path: '/datasources', label: '数据源管理', permission: 'canManageDatasources' },
+  { path: '/diff-analysis', label: '差异分析', permission: 'canDiffAnalysis' },
+  { path: '/documents/upload', label: '文档上传', permission: 'canUploadDocuments' },
+  { path: '/documents/prd', label: 'PRD 管理', permission: 'canManagePRD' },
+  { path: '/documents/designs', label: '设计资源', permission: 'canManageDesigns' },
+  { path: '/reviews', label: '内容审核', permission: 'canReviewContent' },
+  { path: '/permissions', label: '权限管理', permission: 'canManagePermissions' },
+  { path: '/search', label: '检索', permission: 'canSearch' },
   { path: '/documents', label: '内容管理' },
 ];
 
 function Sidebar() {
   const location = useLocation();
+  const { permissions } = usePermissions();
+
+  // 根据权限过滤菜单项
+  const menuItems = allMenuItems.filter((item) => {
+    if (!item.permission) {
+      return true; // 没有权限要求的菜单项始终显示
+    }
+    return permissions[item.permission];
+  });
 
   return (
     <aside

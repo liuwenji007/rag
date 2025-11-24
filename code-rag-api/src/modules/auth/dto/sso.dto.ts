@@ -17,7 +17,7 @@ export class SSOInitiateDto {
 export class SSOCallbackDto {
   @ApiProperty({
     description: 'SSO 回调参数（由 SSO 提供者返回）',
-    type: 'object',
+    type: Object,
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   params!: Record<string, any>;

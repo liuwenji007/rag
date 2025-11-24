@@ -17,12 +17,13 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String?
-  password  String?  // 密码（可选，SSO 用户不需要密码）
+  password  String? // 密码（可选，SSO 用户不需要密码）
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  roles     UserRole[]
-  loginLogs LoginLog[]
+  roles                UserRole[]
+  loginLogs            LoginLog[]
+  permissionChangeLogs PermissionChangeLog[]
 
   @@map("users")
 }
@@ -34,7 +35,8 @@ model Role {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  users UserRole[]
+  users           UserRole[]
+  rolePermissions RolePermission[]
 
   @@map("roles")
 }
@@ -243,7 +245,7 @@ model SearchHistory {
 model LoginLog {
   id        String   @id @default(uuid())
   userId    String
-  loginType String   // password, sso_saml, sso_oauth2
+  loginType String // password, sso_saml, sso_oauth2
   ipAddress String?
   userAgent String?
   success   Boolean  @default(true)
@@ -254,4 +256,55 @@ model LoginLog {
   @@index([userId])
   @@index([createdAt])
   @@map("login_logs")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique // 权限代码，如 'datasource:manage'
+  name        String // 权限名称
+  description String? // 权限描述
+  category    String? // 权限分类，如 'datasource', 'document', 'search'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model PermissionChangeLog {
+  id           String   @id @default(cuid())
+  changedBy    String // 变更人 ID
+  changeType   String // 'role_permission_added', 'role_permission_removed', 'user_role_added', 'user_role_removed'
+  targetType   String // 'role', 'user'
+  targetId     String // 目标 ID（角色 ID 或用户 ID）
+  permissionId String? // 权限 ID（如果是权限变更）
+  oldValue     Json? // 旧值（JSON 格式）
+  newValue     Json? // 新值（JSON 格式）
+  description  String? // 变更描述
+  createdAt    DateTime @default(now())
+
+  changedByUser User @relation(fields: [changedBy], references: [id], onDelete: Cascade)
+
+  @@index([changedBy])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("permission_change_logs")
 }

@@ -8,8 +8,12 @@ import {
   Header,
   Get,
   Param,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import type { Response } from 'express';
 import { DiffService } from './diff.service';
 import { DiffTaskService } from './diff-task.service';
@@ -21,6 +25,8 @@ import { AnalyzeDiffDto } from './dto/analyze-diff.dto';
 
 @ApiTags('diff')
 @Controller('diff')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin', 'developer')
 export class DiffController {
   constructor(
     private readonly diffService: DiffService,
