@@ -11,6 +11,7 @@ import type { Response } from 'express';
 import { SearchStatisticsService } from './search-statistics.service';
 import { UserActivityService } from './user-activity.service';
 import { DatasourceUsageService } from './datasource-usage.service';
+import { BusinessProcessService } from './business-process.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -25,6 +26,7 @@ export class ReportsController {
     private readonly searchStatisticsService: SearchStatisticsService,
     private readonly userActivityService: UserActivityService,
     private readonly datasourceUsageService: DatasourceUsageService,
+    private readonly businessProcessService: BusinessProcessService,
   ) {}
 
   @Get('search')
@@ -211,6 +213,59 @@ export class ReportsController {
     @Query('endDate') endDate?: string,
   ) {
     const csv = await this.datasourceUsageService.exportToCsv(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
+
+    res.send(csv);
+  }
+
+  @Get('business-process')
+  @ApiOperation({ summary: '获取业务流程完成时间统计' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: '开始日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: '结束日期（ISO 8601 格式）',
+  })
+  async getBusinessProcess(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.businessProcessService.getBusinessProcessStatistics(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
+  }
+
+  @Get('business-process/export/csv')
+  @ApiOperation({ summary: '导出业务流程完成时间统计（CSV）' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: '开始日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: '结束日期（ISO 8601 格式）',
+  })
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="business-process.csv"')
+  async exportBusinessProcessCsv(
+    @Res() res: Response,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const csv = await this.businessProcessService.exportToCsv(
       startDate ? new Date(startDate) : undefined,
       endDate ? new Date(endDate) : undefined,
     );

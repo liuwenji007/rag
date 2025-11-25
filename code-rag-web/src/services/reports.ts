@@ -97,6 +97,38 @@ export interface DatasourceUsageStatistics {
   };
 }
 
+export interface BusinessProcessStatistics {
+  deliveryCycle: {
+    average: number;
+    median: number;
+    min: number;
+    max: number;
+    distribution: Array<{ range: string; count: number }>;
+    trend: Array<{ date: string; averageCycle: number }>;
+  };
+  firstHitRate: {
+    overall: number;
+    byRole: Array<{ role: string; rate: number; total: number; hits: number }>;
+    trend: Array<{ date: string; rate: number }>;
+  };
+  resolutionRate: {
+    overall: number;
+    byRound: Array<{ round: number; count: number; percentage: number }>;
+    byRole: Array<{ role: string; rate: number; total: number; resolved: number }>;
+  };
+  timeReduction: {
+    currentAverage: number;
+    baselineAverage?: number;
+    reductionPercentage?: number;
+    target: number;
+    achievement: number;
+  };
+  timeRange: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
 export const reportsApi = {
   /**
    * 获取检索统计
@@ -213,6 +245,45 @@ export const reportsApi = {
 
     const response = await fetch(
       `${apiClient.defaults.baseURL}/api/v1/reports/datasource-usage/export/csv${params.toString() ? `?${params.toString()}` : ''}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      },
+    );
+
+    return response.blob();
+  },
+
+  /**
+   * 获取业务流程完成时间统计
+   */
+  async getBusinessProcess(
+    startDate?: string,
+    endDate?: string,
+  ): Promise<BusinessProcessStatistics> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+
+    return apiClient.get(
+      `/api/v1/reports/business-process${params.toString() ? `?${params.toString()}` : ''}`,
+    );
+  },
+
+  /**
+   * 导出业务流程完成时间统计为 CSV
+   */
+  async exportBusinessProcessCsv(
+    startDate?: string,
+    endDate?: string,
+  ): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+
+    const response = await fetch(
+      `${apiClient.defaults.baseURL}/api/v1/reports/business-process/export/csv${params.toString() ? `?${params.toString()}` : ''}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
