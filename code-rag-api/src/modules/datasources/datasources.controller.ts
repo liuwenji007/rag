@@ -10,6 +10,7 @@ import {
   HttpStatus,
   BadRequestException,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -18,6 +19,7 @@ import { DatasourcesService } from './datasources.service';
 import { SyncService } from '../sync/sync.service';
 import { SchedulerService } from '../../services/scheduler/scheduler.service';
 import { MonitoringService } from '../../services/monitoring/monitoring.service';
+import { AuditLogService, ActionType, ResourceType } from '../audit-logs/audit-log.service';
 import { CreateDataSourceDto } from './dto/create-datasource.dto';
 import { UpdateDataSourceDto } from './dto/update-datasource.dto';
 import { TestConnectionDto } from './dto/test-connection.dto';
@@ -31,11 +33,34 @@ export class DatasourcesController {
     private readonly syncService: SyncService,
     private readonly schedulerService: SchedulerService,
     private readonly monitoringService: MonitoringService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   @Post()
-  create(@Body() createDto: CreateDataSourceDto) {
-    return this.datasourcesService.create(createDto);
+  async create(@Body() createDto: CreateDataSourceDto, @Request() req: any) {
+    const userId = req.user?.id || req.user?.sub;
+    const result = await this.datasourcesService.create(createDto);
+
+    // 记录审计日志
+    if (userId) {
+      this.auditLogService.createAuditLog({
+        userId,
+        actionType: ActionType.DATASOURCE_CREATE,
+        resourceType: ResourceType.DATASOURCE,
+        resourceId: result.id,
+        details: {
+          name: result.name,
+          type: result.type,
+          enabled: result.enabled,
+        },
+        ipAddress: req?.ip || req?.socket?.remoteAddress || undefined,
+        userAgent: req?.headers['user-agent'] || undefined,
+      }).catch((error: unknown) => {
+        console.error('Failed to record audit log:', error);
+      });
+    }
+
+    return result;
   }
 
   @Get()
@@ -49,13 +74,55 @@ export class DatasourcesController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDto: UpdateDataSourceDto) {
-    return this.datasourcesService.update(id, updateDto);
+  async update(@Param('id') id: string, @Body() updateDto: UpdateDataSourceDto, @Request() req: any) {
+    const userId = req.user?.id || req.user?.sub;
+    const result = await this.datasourcesService.update(id, updateDto);
+
+    // 记录审计日志
+    if (userId) {
+      this.auditLogService.createAuditLog({
+        userId,
+        actionType: ActionType.DATASOURCE_UPDATE,
+        resourceType: ResourceType.DATASOURCE,
+        resourceId: id,
+        details: {
+          changes: updateDto,
+        },
+        ipAddress: req?.ip || req?.socket?.remoteAddress || undefined,
+        userAgent: req?.headers['user-agent'] || undefined,
+      }).catch((error: unknown) => {
+        console.error('Failed to record audit log:', error);
+      });
+    }
+
+    return result;
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.datasourcesService.remove(id);
+  async remove(@Param('id') id: string, @Request() req: any) {
+    const userId = req.user?.id || req.user?.sub;
+    const datasource = await this.datasourcesService.findOne(id);
+    const result = await this.datasourcesService.remove(id);
+
+    // 记录审计日志
+    if (userId) {
+      this.auditLogService.createAuditLog({
+        userId,
+        actionType: ActionType.DATASOURCE_DELETE,
+        resourceType: ResourceType.DATASOURCE,
+        resourceId: id,
+        details: {
+          name: datasource?.name,
+          type: datasource?.type,
+        },
+        ipAddress: req?.ip || req?.socket?.remoteAddress || undefined,
+        userAgent: req?.headers['user-agent'] || undefined,
+      }).catch((error: unknown) => {
+        console.error('Failed to record audit log:', error);
+      });
+    }
+
+    return result;
   }
 
   @Post('test')

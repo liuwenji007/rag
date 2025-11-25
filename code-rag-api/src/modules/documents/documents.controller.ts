@@ -29,6 +29,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { DocumentsService } from './documents.service';
+import { AuditLogService, ActionType, ResourceType } from '../audit-logs/audit-log.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { DocumentQueryDto } from './dto/document-query.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
@@ -37,7 +38,10 @@ import { UpdateDocumentDto } from './dto/update-document.dto';
 @Controller('documents')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(
+    private readonly documentsService: DocumentsService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   @Post('upload')
   @HttpCode(HttpStatus.OK)
@@ -99,6 +103,7 @@ export class DocumentsController {
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: UploadDocumentDto,
     @Headers('x-user-id') userId?: string,
+    @Request() req?: any,
   ) {
     if (!file) {
       throw new Error('File is required');
@@ -110,6 +115,27 @@ export class DocumentsController {
       dto.title,
       userId,
     );
+
+    // 记录审计日志
+    if (userId) {
+      this.auditLogService.createAuditLog({
+        userId,
+        actionType: ActionType.DOCUMENT_UPLOAD,
+        resourceType: ResourceType.DOCUMENT,
+        resourceId: result.id,
+        details: {
+          title: result.title,
+          documentType: dto.documentType || null,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          fileName: file.originalname,
+        },
+        ipAddress: req?.ip || (req as any)?.socket?.remoteAddress || undefined,
+        userAgent: (req?.headers as any)?.['user-agent'] || undefined,
+      }).catch((error: unknown) => {
+        console.error('Failed to record audit log:', error);
+      });
+    }
 
     return result;
   }
@@ -185,8 +211,28 @@ export class DocumentsController {
     @Param('id') id: string,
     @Body() dto: UpdateDocumentDto,
     @Headers('x-user-id') userId?: string,
+    @Request() req?: any,
   ) {
-    return this.documentsService.updateDocument(id, dto, userId);
+    const result = await this.documentsService.updateDocument(id, dto, userId);
+
+    // 记录审计日志
+    if (userId) {
+      this.auditLogService.createAuditLog({
+        userId,
+        actionType: ActionType.DOCUMENT_UPDATE,
+        resourceType: ResourceType.DOCUMENT,
+        resourceId: id,
+        details: {
+          changes: dto,
+        },
+        ipAddress: req?.ip || (req as any)?.socket?.remoteAddress || undefined,
+        userAgent: (req?.headers as any)?.['user-agent'] || undefined,
+      }).catch((error: unknown) => {
+        console.error('Failed to record audit log:', error);
+      });
+    }
+
+    return result;
   }
 
   @Delete(':id')
@@ -204,8 +250,30 @@ export class DocumentsController {
   async deleteDocument(
     @Param('id') id: string,
     @Headers('x-user-id') userId?: string,
+    @Request() req?: any,
   ) {
-    return this.documentsService.deleteDocument(id, userId);
+    const document = await this.documentsService.getDocumentById(id);
+    const result = await this.documentsService.deleteDocument(id, userId);
+
+    // 记录审计日志
+    if (userId) {
+      this.auditLogService.createAuditLog({
+        userId,
+        actionType: ActionType.DOCUMENT_DELETE,
+        resourceType: ResourceType.DOCUMENT,
+        resourceId: id,
+        details: {
+          title: document?.title,
+          documentType: document?.documentType,
+        },
+        ipAddress: req?.ip || (req as any)?.socket?.remoteAddress || undefined,
+        userAgent: (req?.headers as any)?.['user-agent'] || undefined,
+      }).catch((error: unknown) => {
+        console.error('Failed to record audit log:', error);
+      });
+    }
+
+    return result;
   }
 
   @Get('tags/all')

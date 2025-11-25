@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { PermissionsService } from './permissions.service';
+import { AuditLogService, ActionType, ResourceType } from '../audit-logs/audit-log.service';
 import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 import { UpdateUserRolesDto } from './dto/update-user-roles.dto';
 import { BatchOperationDto } from './dto/batch-operation.dto';
@@ -24,7 +25,10 @@ import { Roles } from '../auth/decorators/roles.decorator';
 @Roles('admin')
 @Controller('permissions')
 export class PermissionsController {
-  constructor(private readonly permissionsService: PermissionsService) {}
+  constructor(
+    private readonly permissionsService: PermissionsService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   @Get('matrix')
   @ApiOperation({ summary: '获取权限矩阵' })
@@ -40,11 +44,30 @@ export class PermissionsController {
     @Request() req: any,
   ) {
     const userId = req.user?.id || req.user?.sub;
-    return this.permissionsService.updateRolePermissions(
+    const result = await this.permissionsService.updateRolePermissions(
       roleId,
       dto.permissionIds,
       userId,
     );
+
+    // 记录审计日志
+    if (userId) {
+      this.auditLogService.createAuditLog({
+        userId,
+        actionType: ActionType.PERMISSION_CHANGE,
+        resourceType: ResourceType.ROLE,
+        resourceId: roleId,
+        details: {
+          permissionIds: dto.permissionIds,
+        },
+        ipAddress: req?.ip || req?.socket?.remoteAddress || undefined,
+        userAgent: req?.headers['user-agent'] || undefined,
+      }).catch((error: unknown) => {
+        console.error('Failed to record audit log:', error);
+      });
+    }
+
+    return result;
   }
 
   @Get('users')
