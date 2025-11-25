@@ -1,7 +1,9 @@
 import {
   Controller,
   Get,
+  Post,
   Query,
+  Body,
   UseGuards,
   Res,
   Header,
@@ -12,6 +14,8 @@ import { SearchStatisticsService } from './search-statistics.service';
 import { UserActivityService } from './user-activity.service';
 import { DatasourceUsageService } from './datasource-usage.service';
 import { BusinessProcessService } from './business-process.service';
+import { ReportExportService, ReportFormat } from './report-export.service';
+import { ExportReportDto } from './dto/export-report.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -27,6 +31,7 @@ export class ReportsController {
     private readonly userActivityService: UserActivityService,
     private readonly datasourceUsageService: DatasourceUsageService,
     private readonly businessProcessService: BusinessProcessService,
+    private readonly reportExportService: ReportExportService,
   ) {}
 
   @Get('search')
@@ -271,6 +276,56 @@ export class ReportsController {
     );
 
     res.send(csv);
+  }
+
+  @Post('export')
+  @ApiOperation({ summary: '导出自定义报表' })
+  async exportReport(
+    @Body() dto: ExportReportDto,
+    @Res() res: Response,
+  ) {
+    const config = {
+      types: dto.types,
+      format: dto.format,
+      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      includeCharts: dto.includeCharts !== false,
+      includeSummary: dto.includeSummary !== false,
+    };
+
+    const result = await this.reportExportService.exportReport(config);
+
+    // 根据格式设置响应头
+    const timestamp = new Date().toISOString().split('T')[0];
+    switch (dto.format) {
+      case ReportFormat.CSV:
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="report_${timestamp}.csv"`,
+        );
+        res.send(result);
+        break;
+      case ReportFormat.PDF:
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="report_${timestamp}.pdf"`,
+        );
+        res.send(result);
+        break;
+      case ReportFormat.EXCEL:
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="report_${timestamp}.xlsx"`,
+        );
+        res.send(result);
+        break;
+    }
   }
 }
 

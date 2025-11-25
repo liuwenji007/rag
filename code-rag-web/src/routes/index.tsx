@@ -21,6 +21,7 @@ import SearchStatisticsPage from '../pages/reports/SearchStatisticsPage';
 import UserActivityPage from '../pages/reports/UserActivityPage';
 import DatasourceUsagePage from '../pages/reports/DatasourceUsagePage';
 import BusinessProcessPage from '../pages/reports/BusinessProcessPage';
+import ReportExportPage from '../pages/reports/ReportExportPage';
 import LoginPage from '../pages/auth/LoginPage';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
@@ -61,6 +62,7 @@ function AppRoutes() {
             <Route path="reports/user-activity" element={<UserActivityPage />} />
             <Route path="reports/datasource-usage" element={<DatasourceUsagePage />} />
             <Route path="reports/business-process" element={<BusinessProcessPage />} />
+            <Route path="reports/export" element={<ReportExportPage />} />
             <Route path="documents" element={<div>内容管理</div>} />
             <Route path="*" element={<div>404 - 页面不存在</div>} />
           </Route>

@@ -4,6 +4,7 @@ import { SearchStatisticsService } from './search-statistics.service';
 import { UserActivityService } from './user-activity.service';
 import { DatasourceUsageService } from './datasource-usage.service';
 import { BusinessProcessService } from './business-process.service';
+import { ReportExportService } from './report-export.service';
 import { PrismaService } from '../../database/prisma.service';
 
 @Module({
@@ -13,6 +14,7 @@ import { PrismaService } from '../../database/prisma.service';
     UserActivityService,
     DatasourceUsageService,
     BusinessProcessService,
+    ReportExportService,
     PrismaService,
   ],
   exports: [
@@ -20,6 +22,7 @@ import { PrismaService } from '../../database/prisma.service';
     UserActivityService,
     DatasourceUsageService,
     BusinessProcessService,
+    ReportExportService,
   ],
 })
 export class ReportsModule {}
