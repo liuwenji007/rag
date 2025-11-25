@@ -20,6 +20,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { AuditLogModule } from './modules/audit-logs/audit-log.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     PermissionsModule,
     AuditLogModule,
     DashboardModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [

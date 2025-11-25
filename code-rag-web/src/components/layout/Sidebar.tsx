@@ -19,6 +19,7 @@ const allMenuItems: MenuItem[] = [
   { path: '/permissions', label: '权限管理', permission: 'canManagePermissions' },
   { path: '/search', label: '检索', permission: 'canSearch' },
   { path: '/audit-logs', label: '审计日志', permission: 'canManagePermissions' },
+  { path: '/reports/search', label: '检索统计', permission: 'canManagePermissions' },
   { path: '/documents', label: '内容管理' },
 ];
 

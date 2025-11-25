@@ -1,0 +1,111 @@
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  Res,
+  Header,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { SearchStatisticsService } from './search-statistics.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+
+@ApiTags('报表')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin')
+@Controller('reports')
+export class ReportsController {
+  constructor(
+    private readonly searchStatisticsService: SearchStatisticsService,
+  ) {}
+
+  @Get('search')
+  @ApiOperation({ summary: '获取检索统计报表' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: '开始日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: '结束日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    type: String,
+    description: '角色筛选',
+  })
+  @ApiQuery({
+    name: 'userId',
+    required: false,
+    type: String,
+    description: '用户 ID 筛选',
+  })
+  async getSearchStatistics(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('role') role?: string,
+    @Query('userId') userId?: string,
+  ) {
+    return this.searchStatisticsService.getSearchStatistics(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+      role,
+      userId,
+    );
+  }
+
+  @Get('search/export/csv')
+  @ApiOperation({ summary: '导出检索统计报表（CSV）' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: '开始日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: '结束日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    type: String,
+    description: '角色筛选',
+  })
+  @ApiQuery({
+    name: 'userId',
+    required: false,
+    type: String,
+    description: '用户 ID 筛选',
+  })
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="search-statistics.csv"')
+  async exportSearchStatisticsCsv(
+    @Res() res: Response,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('role') role?: string,
+    @Query('userId') userId?: string,
+  ) {
+    const csv = await this.searchStatisticsService.exportToCsv(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+      role,
+      userId,
+    );
+
+    res.send(csv);
+  }
+}
+
