@@ -55,6 +55,48 @@ export interface UserActivityStatistics {
   }>;
 }
 
+export interface DatasourceUsageStatistics {
+  searchCounts: {
+    byType: Array<{ type: string; count: number; percentage: number }>;
+    byDatasource: Array<{ datasourceId: string; datasourceName: string; type: string; count: number }>;
+    trend: Array<{ date: string; feishu: number; gitlab: number; database: number }>;
+  };
+  hitRate: {
+    byType: Array<{ type: string; rate: number; total: number; hits: number }>;
+    byDatasource: Array<{ datasourceId: string; datasourceName: string; type: string; rate: number }>;
+  };
+  dataVolume: {
+    byType: Array<{ type: string; documentCount: number; codeFileCount: number }>;
+    byDatasource: Array<{ datasourceId: string; datasourceName: string; type: string; documentCount: number; codeFileCount: number }>;
+    trend: Array<{ date: string; totalDocuments: number }>;
+  };
+  syncStatus: {
+    byDatasource: Array<{
+      datasourceId: string;
+      datasourceName: string;
+      type: string;
+      syncCount: number;
+      successCount: number;
+      failedCount: number;
+      successRate: number;
+      avgDuration: number;
+      lastSyncAt: string | null;
+    }>;
+  };
+  health: {
+    byDatasource: Array<{
+      datasourceId: string;
+      datasourceName: string;
+      type: string;
+      status: string;
+      healthScore: number;
+      connectionStatus: string;
+      errorRate: number;
+      lastSyncAt: string | null;
+    }>;
+  };
+}
+
 export const reportsApi = {
   /**
    * 获取检索统计
@@ -132,6 +174,45 @@ export const reportsApi = {
 
     const response = await fetch(
       `${apiClient.defaults.baseURL}/api/v1/reports/user-activity/export/csv${params.toString() ? `?${params.toString()}` : ''}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      },
+    );
+
+    return response.blob();
+  },
+
+  /**
+   * 获取数据源使用情况统计
+   */
+  async getDatasourceUsage(
+    startDate?: string,
+    endDate?: string,
+  ): Promise<DatasourceUsageStatistics> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+
+    return apiClient.get(
+      `/api/v1/reports/datasource-usage${params.toString() ? `?${params.toString()}` : ''}`,
+    );
+  },
+
+  /**
+   * 导出数据源使用情况统计为 CSV
+   */
+  async exportDatasourceUsageCsv(
+    startDate?: string,
+    endDate?: string,
+  ): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+
+    const response = await fetch(
+      `${apiClient.defaults.baseURL}/api/v1/reports/datasource-usage/export/csv${params.toString() ? `?${params.toString()}` : ''}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,

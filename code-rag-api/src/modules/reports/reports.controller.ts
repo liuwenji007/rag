@@ -10,6 +10,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 import type { Response } from 'express';
 import { SearchStatisticsService } from './search-statistics.service';
 import { UserActivityService } from './user-activity.service';
+import { DatasourceUsageService } from './datasource-usage.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -23,6 +24,7 @@ export class ReportsController {
   constructor(
     private readonly searchStatisticsService: SearchStatisticsService,
     private readonly userActivityService: UserActivityService,
+    private readonly datasourceUsageService: DatasourceUsageService,
   ) {}
 
   @Get('search')
@@ -156,6 +158,59 @@ export class ReportsController {
     @Query('endDate') endDate?: string,
   ) {
     const csv = await this.userActivityService.exportToCsv(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
+
+    res.send(csv);
+  }
+
+  @Get('datasource-usage')
+  @ApiOperation({ summary: '获取数据源使用情况报表' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: '开始日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: '结束日期（ISO 8601 格式）',
+  })
+  async getDatasourceUsage(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.datasourceUsageService.getDatasourceUsageStatistics(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
+  }
+
+  @Get('datasource-usage/export/csv')
+  @ApiOperation({ summary: '导出数据源使用情况报表（CSV）' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: '开始日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: '结束日期（ISO 8601 格式）',
+  })
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="datasource-usage.csv"')
+  async exportDatasourceUsageCsv(
+    @Res() res: Response,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const csv = await this.datasourceUsageService.exportToCsv(
       startDate ? new Date(startDate) : undefined,
       endDate ? new Date(endDate) : undefined,
     );

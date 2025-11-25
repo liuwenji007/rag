@@ -21,6 +21,7 @@ const allMenuItems: MenuItem[] = [
   { path: '/audit-logs', label: '审计日志', permission: 'canManagePermissions' },
   { path: '/reports/search', label: '检索统计', permission: 'canManagePermissions' },
   { path: '/reports/user-activity', label: '用户活跃度', permission: 'canManagePermissions' },
+  { path: '/reports/datasource-usage', label: '数据源使用情况', permission: 'canManagePermissions' },
   { path: '/documents', label: '内容管理' },
 ];
 
