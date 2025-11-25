@@ -9,6 +9,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { SearchStatisticsService } from './search-statistics.service';
+import { UserActivityService } from './user-activity.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -21,6 +22,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class ReportsController {
   constructor(
     private readonly searchStatisticsService: SearchStatisticsService,
+    private readonly userActivityService: UserActivityService,
   ) {}
 
   @Get('search')
@@ -103,6 +105,59 @@ export class ReportsController {
       endDate ? new Date(endDate) : undefined,
       role,
       userId,
+    );
+
+    res.send(csv);
+  }
+
+  @Get('user-activity')
+  @ApiOperation({ summary: '获取用户活跃度报表' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: '开始日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: '结束日期（ISO 8601 格式）',
+  })
+  async getUserActivity(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.userActivityService.getUserActivityStatistics(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
+  }
+
+  @Get('user-activity/export/csv')
+  @ApiOperation({ summary: '导出用户活跃度报表（CSV）' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: '开始日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: '结束日期（ISO 8601 格式）',
+  })
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="user-activity.csv"')
+  async exportUserActivityCsv(
+    @Res() res: Response,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const csv = await this.userActivityService.exportToCsv(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
     );
 
     res.send(csv);

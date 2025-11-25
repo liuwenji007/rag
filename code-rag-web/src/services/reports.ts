@@ -27,6 +27,34 @@ export interface SearchStatistics {
   };
 }
 
+export interface UserActivityStatistics {
+  activeUsers: {
+    dau: number;
+    wau: number;
+    mau: number;
+    dauTrend: Array<{ date: string; count: number }>;
+  };
+  retention: {
+    day1: number;
+    day7: number;
+    day30: number;
+    trend: Array<{ date: string; day1: number; day7: number; day30: number }>;
+  };
+  frequencyDistribution: {
+    active: number;
+    normal: number;
+    low: number;
+    inactive: number;
+  };
+  byRole: Array<{
+    role: string;
+    dau: number;
+    wau: number;
+    mau: number;
+    totalUsers: number;
+  }>;
+}
+
 export const reportsApi = {
   /**
    * 获取检索统计
@@ -65,6 +93,45 @@ export const reportsApi = {
 
     const response = await fetch(
       `${apiClient.defaults.baseURL}/api/v1/reports/search/export/csv${params.toString() ? `?${params.toString()}` : ''}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      },
+    );
+
+    return response.blob();
+  },
+
+  /**
+   * 获取用户活跃度统计
+   */
+  async getUserActivity(
+    startDate?: string,
+    endDate?: string,
+  ): Promise<UserActivityStatistics> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+
+    return apiClient.get(
+      `/api/v1/reports/user-activity${params.toString() ? `?${params.toString()}` : ''}`,
+    );
+  },
+
+  /**
+   * 导出用户活跃度统计为 CSV
+   */
+  async exportUserActivityCsv(
+    startDate?: string,
+    endDate?: string,
+  ): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+
+    const response = await fetch(
+      `${apiClient.defaults.baseURL}/api/v1/reports/user-activity/export/csv${params.toString() ? `?${params.toString()}` : ''}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,

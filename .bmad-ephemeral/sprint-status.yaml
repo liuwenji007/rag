@@ -105,7 +105,7 @@ development_status:
   epic-7: contexted
   7-1-admin-dashboard: review
   7-2-search-statistics: review
-  7-3-user-activity-report: backlog
+  7-3-user-activity-report: review
   7-4-datasource-usage-report: backlog
   7-5-business-process-statistics: backlog
   7-6-report-export: backlog

@@ -18,6 +18,7 @@ import PermissionsPage from '../pages/permissions/PermissionsPage';
 import SearchPage from '../pages/search/SearchPage';
 import AuditLogsPage from '../pages/audit-logs/AuditLogsPage';
 import SearchStatisticsPage from '../pages/reports/SearchStatisticsPage';
+import UserActivityPage from '../pages/reports/UserActivityPage';
 import LoginPage from '../pages/auth/LoginPage';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
@@ -55,6 +56,7 @@ function AppRoutes() {
             <Route path="search" element={<SearchPage />} />
             <Route path="audit-logs" element={<AuditLogsPage />} />
             <Route path="reports/search" element={<SearchStatisticsPage />} />
+            <Route path="reports/user-activity" element={<UserActivityPage />} />
             <Route path="documents" element={<div>内容管理</div>} />
             <Route path="*" element={<div>404 - 页面不存在</div>} />
           </Route>
