@@ -5,7 +5,6 @@ import Loading from '../../components/common/Loading';
 
 function PermissionsPage() {
   const [activeTab, setActiveTab] = useState<'matrix' | 'users' | 'changelog'>('matrix');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -57,7 +56,6 @@ function PermissionsPage() {
 
       {/* 内容区域 */}
       {error && <ErrorMessage message={error} onRetry={() => setError(null)} />}
-      {loading && <Loading />}
 
       {activeTab === 'matrix' && <PermissionMatrixTab />}
       {activeTab === 'users' && <UserRolesTab />}

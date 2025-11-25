@@ -7,7 +7,7 @@ import Loading from '../../components/common/Loading';
 import FeedbackButton from '../../components/search/FeedbackButton';
 
 export default function SearchPage() {
-  const { permissions } = usePermissions();
+  const { user } = usePermissions();
   const [query, setQuery] = useState('');
   const [searchResponse, setSearchResponse] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ export default function SearchPage() {
         query: query.trim(),
         topK,
         minScore,
-        role: permissions.user?.roles?.[0] || undefined,
+        role: user?.roles?.[0] || undefined,
       });
       setSearchResponse(response);
     } catch (err) {
