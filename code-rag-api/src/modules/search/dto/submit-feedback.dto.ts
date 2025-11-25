@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsString, IsEnum, IsInt, IsOptional, IsUUID, IsBoolean, Min } from 'class-validator';
 
 export class SubmitResultFeedbackDto {
   @ApiProperty({
@@ -43,6 +43,14 @@ export class SubmitResultFeedbackDto {
   @IsOptional()
   @IsString()
   comment?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isSuspected?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  confirmed?: boolean;
 }
 
 export class UpdateSearchHistoryFeedbackDto {

@@ -254,6 +254,8 @@ model SearchResultFeedback {
   adoptionStatus  String // 'adopted' | 'rejected'
   comment         String? @db.Text // 反馈意见
   userId          String // 用户 ID
+  isSuspected     Boolean  @default(false) // 是否为疑似结果
+  confirmed       Boolean? // 是否已确认（null: 未操作, true: 已确认, false: 已拒绝）
   createdAt       DateTime @default(now())
 
   searchHistory SearchHistory @relation(fields: [searchHistoryId], references: [id], onDelete: Cascade)
@@ -262,6 +264,7 @@ model SearchResultFeedback {
   @@index([searchHistoryId])
   @@index([userId])
   @@index([adoptionStatus])
+  @@index([isSuspected, confirmed])
   @@map("search_result_feedbacks")
 }
 

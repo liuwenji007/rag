@@ -41,6 +41,8 @@ export class FeedbackService {
         documentId: dto.documentId,
         adoptionStatus: dto.adoptionStatus,
         comment: dto.comment,
+        isSuspected: dto.isSuspected !== undefined ? dto.isSuspected : undefined,
+        confirmed: dto.confirmed !== undefined ? dto.confirmed : undefined,
       },
       create: {
         searchHistoryId: dto.searchHistoryId,
@@ -49,6 +51,8 @@ export class FeedbackService {
         adoptionStatus: dto.adoptionStatus,
         comment: dto.comment,
         userId,
+        isSuspected: dto.isSuspected || false,
+        confirmed: dto.confirmed,
       },
     });
 
@@ -62,6 +66,75 @@ export class FeedbackService {
       resultIndex: feedback.resultIndex,
       documentId: feedback.documentId,
       adoptionStatus: feedback.adoptionStatus,
+      comment: feedback.comment,
+      isSuspected: feedback.isSuspected,
+      confirmed: feedback.confirmed,
+      createdAt: feedback.createdAt,
+    };
+  }
+
+  /**
+   * 确认疑似结果
+   */
+  async confirmSuspectedResult(
+    searchHistoryId: string,
+    resultIndex: number,
+    confirmed: boolean,
+    userId: string,
+    comment?: string,
+  ) {
+    // 验证检索历史是否存在
+    const searchHistory = await this.prisma.searchHistory.findUnique({
+      where: { id: searchHistoryId },
+    });
+
+    if (!searchHistory) {
+      throw new NotFoundException(`Search history ${searchHistoryId} not found`);
+    }
+
+    // 验证结果索引是否有效
+    if (resultIndex >= searchHistory.resultsCount) {
+      throw new BadRequestException(
+        `Result index ${resultIndex} is out of range. Total results: ${searchHistory.resultsCount}`,
+      );
+    }
+
+    // 创建或更新反馈（标记为疑似结果并确认）
+    const feedback = await this.prisma.searchResultFeedback.upsert({
+      where: {
+        searchHistoryId_resultIndex_userId: {
+          searchHistoryId,
+          resultIndex,
+          userId,
+        },
+      },
+      update: {
+        isSuspected: true,
+        confirmed,
+        comment: comment || undefined,
+        adoptionStatus: confirmed ? 'adopted' : 'rejected',
+      },
+      create: {
+        searchHistoryId,
+        resultIndex,
+        userId,
+        isSuspected: true,
+        confirmed,
+        comment: comment || undefined,
+        adoptionStatus: confirmed ? 'adopted' : 'rejected',
+      },
+    });
+
+    this.logger.log(
+      `Suspected result confirmed: searchHistoryId=${searchHistoryId}, resultIndex=${resultIndex}, confirmed=${confirmed}`,
+    );
+
+    return {
+      id: feedback.id,
+      searchHistoryId: feedback.searchHistoryId,
+      resultIndex: feedback.resultIndex,
+      isSuspected: feedback.isSuspected,
+      confirmed: feedback.confirmed,
       comment: feedback.comment,
       createdAt: feedback.createdAt,
     };

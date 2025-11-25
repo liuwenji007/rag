@@ -98,7 +98,7 @@ development_status:
   6-3-permission-configuration: review
   6-4-feedback-mechanism: review
   6-5-audit-logging: done
-  6-6-suspected-result-confirmation: backlog
+  6-6-suspected-result-confirmation: review
   epic-6-retrospective: optional
 
   # Epic 7: 监控与报表

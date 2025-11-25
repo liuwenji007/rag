@@ -12,6 +12,8 @@ import { AuditLogService, ActionType, ResourceType } from '../audit-logs/audit-l
 import { SearchDto } from './dto/search.dto';
 import { SearchHistoryQueryDto, UpdateAdoptionStatusDto } from './dto/search-history.dto';
 import { SubmitResultFeedbackDto, UpdateSearchHistoryFeedbackDto } from './dto/submit-feedback.dto';
+import { ConfirmSuspectedResultDto } from './dto/confirm-suspected-result.dto';
+import { RefineSearchDto } from './dto/refine-search.dto';
 import { UserRole } from './types/role.types';
 import type { Request } from 'express';
 
@@ -523,6 +525,74 @@ export class SearchController {
     const end = endDate ? new Date(endDate) : undefined;
 
     return this.searchHistoryService.getTeamStats(userIdArray, start, end);
+  }
+
+  /**
+   * 确认疑似结果
+   */
+  @Post('suspected/confirm')
+  @ApiOperation({
+    summary: '确认疑似结果',
+    description: '对系统标记为"疑似"的检索结果进行确认（确认有效或拒绝）。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '确认成功',
+  })
+  @ApiResponse({ status: 404, description: '检索历史不存在' })
+  async confirmSuspectedResult(
+    @Body() dto: ConfirmSuspectedResultDto,
+    @Headers('x-user-id') userIdHeader?: string,
+  ) {
+    if (!userIdHeader) {
+      throw new Error('User ID is required');
+    }
+    return this.feedbackService.confirmSuspectedResult(
+      dto.searchHistoryId,
+      dto.resultIndex,
+      dto.confirmed,
+      userIdHeader,
+      dto.comment,
+    );
+  }
+
+  /**
+   * 补充信息重新检索
+   */
+  @Post('refine')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '补充信息重新检索',
+    description: '基于原始查询和补充信息重新执行检索，以获得更准确的结果。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '检索成功',
+  })
+  async refineSearch(
+    @Body() dto: RefineSearchDto,
+    @Headers('x-user-role') userRoleHeader?: string,
+    @Headers('x-user-id') userIdHeader?: string,
+  ) {
+    // 合并原始查询和补充信息
+    const refinedQuery = `${dto.originalQuery} ${dto.additionalContext}`.trim();
+
+    const response = await this.searchService.search(
+      refinedQuery,
+      {
+        topK: dto.topK,
+        minScore: dto.minScore,
+        role: userRoleHeader as UserRole | undefined,
+      },
+      userIdHeader,
+    );
+
+    return {
+      ...response,
+      originalQuery: dto.originalQuery,
+      additionalContext: dto.additionalContext,
+      refinedQuery,
+    };
   }
 }
 
