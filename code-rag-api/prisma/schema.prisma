@@ -24,6 +24,7 @@ model User {
   roles                UserRole[]
   loginLogs            LoginLog[]
   permissionChangeLogs PermissionChangeLog[]
+  auditLogs            AuditLog[]
 
   @@map("users")
 }
@@ -235,11 +236,33 @@ model SearchHistory {
   role           String? // 用户角色（UserRole: developer, product, ui）
   resultsCount   Int // 返回结果数量
   adoptionStatus String? // 采纳状态：'adopted' | 'rejected' | null
+  comment        String? @db.Text // 整体反馈意见
   createdAt      DateTime @default(now())
+
+  resultFeedbacks SearchResultFeedback[]
 
   @@index([userId, createdAt])
   @@index([userId, role])
   @@map("search_histories")
+}
+
+model SearchResultFeedback {
+  id              String   @id @default(cuid())
+  searchHistoryId String
+  resultIndex     Int // 检索结果索引（从 0 开始）
+  documentId      String? // 文档 ID（可选，用于关联具体文档）
+  adoptionStatus  String // 'adopted' | 'rejected'
+  comment         String? @db.Text // 反馈意见
+  userId          String // 用户 ID
+  createdAt       DateTime @default(now())
+
+  searchHistory SearchHistory @relation(fields: [searchHistoryId], references: [id], onDelete: Cascade)
+
+  @@unique([searchHistoryId, resultIndex, userId])
+  @@index([searchHistoryId])
+  @@index([userId])
+  @@index([adoptionStatus])
+  @@map("search_result_feedbacks")
 }
 
 model LoginLog {
@@ -307,4 +330,24 @@ model PermissionChangeLog {
   @@index([targetType, targetId])
   @@index([createdAt])
   @@map("permission_change_logs")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String   // 用户 ID
+  actionType   String   // 操作类型：search, document_upload, permission_change, datasource_change 等
+  resourceType String?  // 资源类型：document, datasource, permission, user 等
+  resourceId   String?  // 资源 ID（可选）
+  details      Json?    // 操作详情（JSON 格式）
+  ipAddress    String?  // IP 地址
+  userAgent    String?  // 用户代理
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([actionType, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

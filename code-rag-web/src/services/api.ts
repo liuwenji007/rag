@@ -12,12 +12,27 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// 请求拦截器 - 用于添加 JWT token
+// 请求拦截器 - 用于添加 JWT token 和用户信息
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // 添加用户信息头（如果存在）
+    const user = localStorage.getItem('user');
+    if (user && config.headers) {
+      try {
+        const userData = JSON.parse(user);
+        if (userData.id) {
+          config.headers['x-user-id'] = userData.id;
+        }
+        if (userData.roles && userData.roles.length > 0) {
+          config.headers['x-user-role'] = userData.roles.join(',');
+        }
+      } catch (e) {
+        // 忽略解析错误
+      }
     }
     return config;
   },

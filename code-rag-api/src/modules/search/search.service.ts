@@ -42,6 +42,7 @@ export interface SearchResponse {
   suspected: boolean;
   results: SearchResult[];
   suggestion?: string;
+  searchHistoryId?: string;
 }
 
 export interface SearchOptions {
@@ -136,21 +137,27 @@ export class SearchService {
       };
 
       // 记录检索历史
+      let searchHistoryId: string | null = null;
       if (userId) {
-        await this.recordSearchHistory(
-          userId,
-          query,
-          options.role,
-          processedResults.length,
-        ).catch((error) => {
+        try {
+          searchHistoryId = await this.recordSearchHistory(
+            userId,
+            query,
+            options.role,
+            processedResults.length,
+          );
+        } catch (error) {
           // 记录历史失败不影响检索结果
           this.logger.warn(
             `Failed to record search history: ${error instanceof Error ? error.message : 'Unknown error'}`,
           );
-        });
+        }
       }
 
-      return response;
+      return {
+        ...response,
+        searchHistoryId: searchHistoryId || undefined,
+      };
     } catch (error) {
       this.logger.error(
         `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -167,8 +174,8 @@ export class SearchService {
     query: string,
     role: UserRole | undefined,
     resultsCount: number,
-  ): Promise<void> {
-    await this.prisma.searchHistory.create({
+  ): Promise<string | null> {
+    const history = await this.prisma.searchHistory.create({
       data: {
         userId,
         query,
@@ -177,6 +184,7 @@ export class SearchService {
         adoptionStatus: null,
       },
     });
+    return history.id;
   }
 
   /**

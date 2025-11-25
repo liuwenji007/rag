@@ -10,6 +10,7 @@ export interface SearchHistoryItem {
   role: string | null;
   resultsCount: number;
   adoptionStatus: string | null;
+  comment: string | null;
   createdAt: Date;
 }
 
@@ -100,6 +101,7 @@ export class SearchHistoryService {
         role: item.role,
         resultsCount: item.resultsCount,
         adoptionStatus: item.adoptionStatus,
+        comment: item.comment,
         createdAt: item.createdAt,
       })),
       total,
@@ -135,6 +137,7 @@ export class SearchHistoryService {
       role: history.role,
       resultsCount: history.resultsCount,
       adoptionStatus: history.adoptionStatus,
+      comment: history.comment,
       createdAt: history.createdAt,
     };
   }
@@ -146,15 +149,21 @@ export class SearchHistoryService {
     id: string,
     adoptionStatus: 'adopted' | 'rejected',
     userId?: string,
+    comment?: string,
   ): Promise<SearchHistoryItem> {
     const where: { id: string; userId?: string } = { id };
     if (userId) {
       where.userId = userId;
     }
 
+    const updateData: any = { adoptionStatus };
+    if (comment !== undefined) {
+      updateData.comment = comment;
+    }
+
     const history = await this.prisma.searchHistory.update({
       where,
-      data: { adoptionStatus },
+      data: updateData,
     });
 
     return {
@@ -164,6 +173,7 @@ export class SearchHistoryService {
       role: history.role,
       resultsCount: history.resultsCount,
       adoptionStatus: history.adoptionStatus,
+      comment: history.comment,
       createdAt: history.createdAt,
     };
   }

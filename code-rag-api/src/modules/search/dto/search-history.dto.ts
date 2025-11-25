@@ -33,5 +33,9 @@ export class SearchHistoryQueryDto {
 export class UpdateAdoptionStatusDto {
   @IsEnum(['adopted', 'rejected'])
   adoptionStatus!: 'adopted' | 'rejected';
+
+  @IsOptional()
+  @IsString()
+  comment?: string;
 }
 

@@ -10,7 +10,13 @@ import {
   Param,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -40,7 +46,8 @@ export class DiffController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: '解析需求并识别变更点',
-    description: '使用 LLM 解析需求描述，识别新增功能点、修改功能点和影响范围。',
+    description:
+      '使用 LLM 解析需求描述，识别新增功能点、修改功能点和影响范围。',
   })
   @ApiResponse({
     status: 200,
@@ -145,9 +152,7 @@ export class DiffController {
       // 发送错误信息
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
-      res.write(
-        `data: ${JSON.stringify({ error: errorMessage })}\n\n`,
-      );
+      res.write(`data: ${JSON.stringify({ error: errorMessage })}\n\n`);
       res.end();
     }
   }
@@ -159,7 +164,8 @@ export class DiffController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: '匹配历史代码',
-    description: '为单个变更点匹配相似的历史代码，返回代码片段、上下文、匹配度和来源链接。',
+    description:
+      '为单个变更点匹配相似的历史代码，返回代码片段、上下文、匹配度和来源链接。',
   })
   @ApiResponse({
     status: 200,
@@ -205,7 +211,7 @@ export class DiffController {
                       language: { type: 'string' },
                       datasourceId: { type: 'string' },
                       documentId: { type: 'string' },
-                      chunkIndex: { type: 'number' },
+                       chunkIndex: { type: 'number' },
                     },
                   },
                 },
@@ -347,10 +353,16 @@ export class DiffController {
                   title: { type: 'string' },
                   description: { type: 'string' },
                   priority: { type: 'string', enum: ['high', 'medium', 'low'] },
-                  type: { type: 'string', enum: ['new_feature', 'modified_feature'] },
+                  type: {
+                    type: 'string',
+                    enum: ['new_feature', 'modified_feature'],
+                  },
                   relatedDocs: { type: 'array' },
                   codeRefs: { type: 'array' },
-                  status: { type: 'string', enum: ['pending', 'in_progress', 'completed'] },
+                  status: {
+                    type: 'string',
+                    enum: ['pending', 'in_progress', 'completed'],
+                  },
                   createdAt: { type: 'string', format: 'date-time' },
                 },
               },
@@ -519,7 +531,11 @@ export class DiffController {
             result: { type: 'object', nullable: true },
             error: { type: 'string', nullable: true },
             createdAt: { type: 'string', format: 'date-time' },
-            completedAt: { type: 'string', format: 'date-time', nullable: true },
+            completedAt: {
+              type: 'string',
+              format: 'date-time',
+              nullable: true,
+            },
           },
         },
       },
@@ -534,4 +550,3 @@ export class DiffController {
     return task;
   }
 }
-

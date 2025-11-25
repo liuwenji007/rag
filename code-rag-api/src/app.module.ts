@@ -18,6 +18,7 @@ import { UIRequirementsModule } from './modules/ui-requirements/ui-requirements.
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
+import { AuditLogModule } from './modules/audit-logs/audit-log.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
     ReviewsModule,
     AuthModule,
     PermissionsModule,
+    AuditLogModule,
   ],
   controllers: [AppController],
   providers: [

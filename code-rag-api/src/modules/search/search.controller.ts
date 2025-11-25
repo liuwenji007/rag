@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Headers, Query, Res, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Headers, Query, Res, Get, Param, Patch, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -7,9 +7,13 @@ import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { SearchService } from './search.service';
 import { SearchHistoryService } from './search-history.service';
+import { FeedbackService } from './feedback.service';
+import { AuditLogService, ActionType, ResourceType } from '../audit-logs/audit-log.service';
 import { SearchDto } from './dto/search.dto';
 import { SearchHistoryQueryDto, UpdateAdoptionStatusDto } from './dto/search-history.dto';
+import { SubmitResultFeedbackDto, UpdateSearchHistoryFeedbackDto } from './dto/submit-feedback.dto';
 import { UserRole } from './types/role.types';
+import type { Request } from 'express';
 
 @ApiTags('search')
 @Controller('search')
@@ -19,6 +23,8 @@ export class SearchController {
   constructor(
     private readonly searchService: SearchService,
     private readonly searchHistoryService: SearchHistoryService,
+    private readonly feedbackService: FeedbackService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   /**
@@ -86,6 +92,7 @@ export class SearchController {
     @Body() searchDto: SearchDto,
     @Headers('x-user-role') userRoleHeader?: string,
     @Headers('x-user-id') userIdHeader?: string,
+    @Req() req?: Request,
   ) {
     // 优先使用请求体中的 role，其次使用请求头中的 x-user-role
     const role = searchDto.role || (userRoleHeader as UserRole | undefined);
@@ -101,6 +108,28 @@ export class SearchController {
       },
       userIdHeader,
     );
+
+    // 记录审计日志
+    if (userIdHeader) {
+      this.auditLogService.createAuditLog({
+        userId: userIdHeader,
+        actionType: ActionType.SEARCH,
+        resourceType: ResourceType.SEARCH,
+        details: {
+          query: searchDto.query,
+          role: role || null,
+          topK: searchDto.topK,
+          minScore: searchDto.minScore,
+          resultsCount: response.total,
+          suspected: response.suspected,
+        },
+        ipAddress: req?.ip || req?.socket?.remoteAddress || undefined,
+        userAgent: req?.headers['user-agent'] || undefined,
+      }).catch((error: unknown) => {
+        // 审计日志记录失败不影响主流程
+        console.error('Failed to record audit log:', error);
+      });
+    }
 
     return response;
   }
@@ -316,6 +345,147 @@ export class SearchController {
       id,
       dto.adoptionStatus,
       userIdHeader,
+      dto.comment,
+    );
+  }
+
+  /**
+   * 提交单条检索结果反馈
+   */
+  @Post('feedback')
+  @ApiOperation({
+    summary: '提交单条检索结果反馈',
+    description: '对单条检索结果进行反馈（采纳/拒绝 + 评论）。',
+  })
+  async submitResultFeedback(
+    @Body() dto: SubmitResultFeedbackDto,
+    @Headers('x-user-id') userIdHeader?: string,
+  ) {
+    if (!userIdHeader) {
+      throw new Error('User ID is required');
+    }
+    return this.feedbackService.submitResultFeedback(dto, userIdHeader);
+  }
+
+  /**
+   * 更新检索历史整体反馈
+   */
+  @Patch('history/:id/feedback')
+  @ApiOperation({
+    summary: '更新检索历史整体反馈',
+    description: '更新检索历史的整体反馈意见和采纳状态。',
+  })
+  @ApiParam({
+    name: 'id',
+    description: '检索历史 ID',
+  })
+  async updateSearchHistoryFeedback(
+    @Param('id') id: string,
+    @Body() dto: UpdateSearchHistoryFeedbackDto,
+    @Headers('x-user-id') userIdHeader?: string,
+  ) {
+    return this.feedbackService.updateSearchHistoryFeedback(id, dto, userIdHeader);
+  }
+
+  /**
+   * 获取反馈列表（管理员）
+   */
+  @Get('feedback')
+  @Roles('admin')
+  @ApiOperation({
+    summary: '获取反馈列表',
+    description: '获取所有检索结果反馈列表（仅管理员）。',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: '页码',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: '每页数量',
+  })
+  @ApiQuery({
+    name: 'searchHistoryId',
+    required: false,
+    type: String,
+    description: '检索历史 ID',
+  })
+  @ApiQuery({
+    name: 'userId',
+    required: false,
+    type: String,
+    description: '用户 ID',
+  })
+  @ApiQuery({
+    name: 'adoptionStatus',
+    required: false,
+    type: String,
+    description: '采纳状态（adopted 或 rejected）',
+  })
+  async getFeedbackList(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('searchHistoryId') searchHistoryId?: string,
+    @Query('userId') userId?: string,
+    @Query('adoptionStatus') adoptionStatus?: string,
+  ) {
+    return this.feedbackService.getFeedbackList(
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+      searchHistoryId,
+      userId,
+      adoptionStatus,
+    );
+  }
+
+  /**
+   * 获取采纳率统计
+   */
+  @Get('feedback/stats')
+  @Roles('admin')
+  @ApiOperation({
+    summary: '获取采纳率统计',
+    description: '获取检索结果的采纳率统计信息（仅管理员）。',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: '开始日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: '结束日期（ISO 8601 格式）',
+  })
+  @ApiQuery({
+    name: 'userId',
+    required: false,
+    type: String,
+    description: '用户 ID',
+  })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    type: String,
+    description: '用户角色',
+  })
+  async getAdoptionStats(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('userId') userId?: string,
+    @Query('role') role?: string,
+  ) {
+    return this.feedbackService.getAdoptionStats(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+      userId,
+      role,
     );
   }
 
